@@ -40,6 +40,13 @@ def tokenize_(string, tokenizers, settings=None, banned_chars = None):
     
     return final_string
 
+def timer(func):
+    def wrapper():
+        start = time.time()
+        func()
+        print(time.time() - start)
+    return wrapper
+
 @timer
 def test():
     print(tokenize_("(tunapro1234)", "(1)"))

@@ -1,5 +1,5 @@
 # Dün yazdığım fonsiyonun gereksizliğini fark ettim.
-# Sorting olayını işin içinden çıkarmanın programın performansına yansımasını umuyorum
+# Sorting olayını işin içinden çıkarmanın programın performansına yansımasını umuyorum.
 
 import time
 
