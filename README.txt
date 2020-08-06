@@ -1,0 +1,1 @@
+Bitirmeden bırakacağımı biliyorum
