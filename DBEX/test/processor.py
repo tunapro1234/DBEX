@@ -123,6 +123,10 @@ def process_(string):
     #endregion #########################################    
     
     
+    init_list(not_final)
+    
+
+def init_list(t_list):
     dicts = []
     arrays = []
     tuples = []
