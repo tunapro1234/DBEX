@@ -123,64 +123,45 @@ def process_(string):
     #endregion #########################################    
     
     
-    init_list(not_final)
+    if not_final[1] == "[":
+        return init_list(not_final[1:])
+    elif not_final[1] == "{":
+        return init_dict(not_final[1:])
+    elif not_final[1] == "(":
+        return init_tuple(not_final[1:])
     
 
-def init_list(t_list):
-    dicts = []
-    arrays = []
-    tuples = []
-    # last_indexes = []
-    
-    new_tags = ""
-    for index, part in enumerate(not_final):
+def init_list(t_list):    
+    i = 0
+    final = []
+    current_index = 0    
+    while i < len(t_list):
+        part = t_list[i]
+        
         if "token" in part.tags:
-            new_tags = "#".join(["el_of_ar" + str(i) for i, j in enumerate(arrays) if j[0] == True]) + "#"
-            # new_tags = "#".join(["eofarr" + str(i) for i, j in enumerate(arrays) if j[0] == True]) + "#"
-            # new_tags = "#".join(["eofarr" + str(i) for i, j in enumerate(arrays) if j[0] == True]) + "#"
-            
             if part.data == "[":            
-                part.tags += "st_of_ar" + str(len(arrays)) + "#"
-                # last_indexes.append(0)
-                arrays.append([True, str(len(arrays)), 0])
+                next_closing = [j for j in range(len(t_list)) if t_list[j].data == "]"]
+                if len(next_closing) == 0:
+                    print("Tokenizing Error 3.")
+                    return False
                 
-                # b = new_not_final
-                # for i, j in enumerate(last_indexes):
-                #     if i+1 != len(last_indexes):
-                #         b = b[j]
-                #     else:
-                #         b.append([])
-                        
-                        
+                next_closing = next_closing[0]
+                final.append(init_list(t_list[(i+1):(next_closing+1)]))
+                i = next_closing
+                
             elif part.data == "]":
-
-                # En son açık olan array kapatıldı (en içerdeki)
-                a = [i for i, j in enumerate(arrays) if j[0] == True]
-                if len(a) == 0:
-                    print("Tokenizing error 2.")
-                    return False
-                arrays[a[-1]][0] = False 
-
-                # kapatılan arrayin indexleri silindi
-                # last_indexes = [last_indexes[i] for i in range(len(last_indexes)) if i+1 != len(last_indexes)]
-                part.tags += "end_of_ar" + str(a[-1]) + "#"
-                new_tags = ""
-        
+                return final
+            
             elif part.data == ",":
-                c = [i for i in arrays if i[0] == True]
-                if len(c) == 0:
-                    print("Tokenizing error 3.")
-                    return False
-                arrays[c[-1]][2] += 1 
-                # last_indexes[-1] += 1
+                current_index += 1
         
-        part.tags += new_tags
-        not_final[index] = part
-        new_tags = ""        
+        else:
+            final.append(part.data)    
+        
+        i += 1
     
-    print(arrays)
-    return "\n".join([str(i) for i in not_final])    
-    # return final
+    
+    return final
     
 def timer(func):
     def wrapper():
