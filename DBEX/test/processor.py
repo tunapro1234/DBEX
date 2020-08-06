@@ -81,11 +81,13 @@ def process_(string):
             else:
                 if part.isdigit():
                     tag = "int#"
+                elif part == " ":
+                    tag = "ignore#"
                 else:
                     print("Tokenizing error.")
                     return False
-        
-        not_final.append(Part(part, tag))
+        if tag != "ignore#":
+            not_final.append(Part(part, tag))
     #endregion
     
     
@@ -123,30 +125,67 @@ def process_(string):
     #endregion #########################################    
     
     
-    if not_final[1] == "[":
+    if not_final[0].data == "[":
         return init_list(not_final[1:])
-    elif not_final[1] == "{":
+    elif not_final[0].data == "{":
         return init_dict(not_final[1:])
-    elif not_final[1] == "(":
+    elif not_final[0].data == "(":
         return init_tuple(not_final[1:])
     
 
 def init_list(t_list):    
     i = 0
     final = []
-    current_index = 0    
+    last_used_index = -1
+    current_index = 0
     while i < len(t_list):
         part = t_list[i]
         
         if "token" in part.tags:
             if part.data == "[":            
-                next_closing = [j for j in range(len(t_list)) if t_list[j].data == "]"]
+                next_closing = [j for j in range(len(t_list)) if t_list[j].data == "]" and j > i]
+                
                 if len(next_closing) == 0:
                     print("Tokenizing Error 3.")
                     return False
                 
                 next_closing = next_closing[0]
-                final.append(init_list(t_list[(i+1):(next_closing+1)]))
+                if (current_index-1) == last_used_index:
+                    final.append(init_list(t_list[(i+1):(next_closing+1)]))
+                    last_used_index = current_index
+                else:
+                    print("Tokenizing Error 4,")
+                    return False
+                i = next_closing
+            
+            elif part.data == "(":
+                next_closing = [j for j in range(len(t_list)) if t_list[j].data == ")"]
+                if len(next_closing) == 0:
+                    print("Tokenizing Error 3.")
+                    return False
+                
+                next_closing = next_closing[0]
+                if (current_index-1) == last_used_index:
+                    final.append(init_tuple(t_list[(i+1):(next_closing+1)]))
+                    last_used_index = current_index
+                else:
+                    print("Tokenizing Error 4,")
+                    return False
+                i = next_closing
+            
+            elif part.data == "{":
+                next_closing = [j for j in range(len(t_list)) if t_list[j].data == "}"]
+                if len(next_closing) == 0:
+                    print("Tokenizing Error 3.")
+                    return False
+                
+                next_closing = next_closing[0]
+                if (current_index-1) == last_used_index:
+                    final.append(init_dict(t_list[(i+1):(next_closing+1)]))
+                    last_used_index = current_index
+                else:
+                    print("Tokenizing Error 4,")
+                    return False
                 i = next_closing
                 
             elif part.data == "]":
@@ -156,10 +195,14 @@ def init_list(t_list):
                 current_index += 1
         
         else:
-            final.append(part.data)    
+            if (current_index-1) == last_used_index:
+                final.append(part.data)    
+                last_used_index = current_index
+            else:
+                print("Tokenizing Error 4,")
+                return False
         
         i += 1
-    
     
     return final
     
@@ -172,7 +215,7 @@ def timer(func):
     
 @timer
 def test():
-    print(process_("[['tuna(pro)'], 1234][]"))
+    print(process_("[['tuna(pro)'], 1234, []]"))
 
 if __name__ == "__main__":
     test()
