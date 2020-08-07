@@ -1,5 +1,5 @@
 import time
-
+#test
 def tokenize_(string, tokenizers, settings=None, banned_chars = None):
     # girdilerin doğruluğu kontrol ediliyor
     try:
