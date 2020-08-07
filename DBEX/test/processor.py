@@ -1,6 +1,20 @@
 import time
-#test
-def tokenize_(string, tokenizers, settings=None, banned_chars = None):
+
+
+"""DONE
+int-string değerlendirmeleri
+
+
+
+""""TODO""""
+\ eklenecek
+dict tuple düzenlemeleri
+ana yapı kısıtlaması
+error isimlendirmeleri
+print-return yerine raise Exception
+"""
+
+def tokenize_(string, tokenizers, settings=None, banned_chars=None):
     # girdilerin doğruluğu kontrol ediliyor
     try:
         if type(tokenizers[0]) != str or type(string[0]) != str: 
@@ -42,16 +56,9 @@ def tokenize_(string, tokenizers, settings=None, banned_chars = None):
         final = banned_final
         
     return final
-    
-
-# tokenizers = "([\"\'\'\"])"
-# final = tokenize_(string, tokenizers + ":=,")
-# if len([i for i in string if i in tokenizers[:len(tokenizers)//2]]) != len([j for j in string if j in tokenizers[(len(tokenizers)//2)+1:]]):
-#     print("Input error.")
-#     return False 
 
 
-def process_(string):
+def tag_(arr, tokenizers):
     class Part:
         def __init__(self, data, tags):
             self.data = data
@@ -60,84 +67,111 @@ def process_(string):
         def __str__(self):
                 return "DATA: " + str(self.data) + " ### TAGS: " + str(self.tags)
     
-    tokenizers = "({[\"''\"]})"
-    
-    #region Parçaları isimlendirme
-    not_final = []
+    final = []
     is_string = False
-    string = tokenize_(string, tokenizers + ":=,", banned_chars=" ")
-    for part in string:
-        if part in tokenizers + ":=,":
+    for part in arr:
+        if part in tokenizers:
             if part == "'" or part == '"':
-                is_string = bool(1 - is_string)
-                tag = "token#"
+                # Eğer önceki parça \ ise token sayılmayacak
+                if len(final) > 0 and "bs" in final[-1].tags:
+                    # önceki backslash str şu anki parça haline geliyor ve şu anki geçiliyor
+                    final[-1].data = part
+                    final[-1].tags = "str#"
+                    tag = "ignore#"
+                else:
+                    is_string = bool(1 - is_string)
+                    tag = "token#"
             elif not is_string:
+                if part == "\\": 
+                    print("Syntax Error (\\) (Code 000)")
+                    return False
                 tag = "token#"
             else:
-                tag = "str#"
+                # önümüze \ geldiyse ve string içindeysek
+                if part == "\\":
+                    # eğer önceki eleman da \ ise şu anki \ str olacak
+                    if len(final) > 0 and "bs" in final[-1].tags:
+                        # önceki backslash str haline getiriliyor ve şu anki geçiliyor
+                        final[-1].tags = "str#"
+                        tag = "ignore#"
+                    # değilse özel token olarak devam
+                    else:
+                        # öncesinde backslash yoksa işaretleyip devam
+                        tag = "bs#"
+                # normal str işte
+                else:
+                    tag = "str#"
         else:
             if is_string:
                 tag = "str#"
             else:
+                part = part.replace(" ", "")
                 if part.isdigit():
                     tag = "int#"
-                elif part == " ":
+                elif part.replace('.', '', 1).isdigit():
+                    tag = "float#"
+                elif part in ["True", "False"]:
+                    tag = "bool#"
+                elif part == "":
                     tag = "ignore#"
                 else:
-                    print("Tokenizing error.")
+                    print("Syntax Error (Code 001)")
                     return False
         if tag != "ignore#":
-            not_final.append(Part(part, tag))
-    #endregion
+            final.append(Part(part, tag))
     
-    
-    #region   Parantez ve tırnak gibi şeylerin açılma ve 
+    #region Aslında string olan tokenları stringle birleştirme
+    prev_tag = ""
+    new_final = []
+    for part in final:            
+        # \ olayı cidden sinir bozucu
+        if "bs" in part.tags:
+            part.tags = "str#"
+            # print(len(part.data))
+            
+        if prev_tag == part.tags and "str" in part.tags:
+            new_final[-1].data += part.data
+        else:
+            new_final.append(part)
+            prev_tag = part.tags
+    final = new_final
+    #endregion #########################################    
+    return final
+
+
+def syntax_check_1_(arr, tokenizers):
+    #   Parantez ve tırnak gibi şeylerin açılma ve 
     # kapanma sayılarının aynı olup olmadığının kontrolü
-    comp = [part.data for part in not_final if "token" in part.tags]
+    comp = [part.data for part in arr if "token" in part.tags]
     
     a = [i for i in comp if i in tokenizers[:len(tokenizers)//2]]
     b = [j for j in comp if j in tokenizers[(len(tokenizers)//2):]]
     if len(a) != len(b):
-        print("Input error.")
+        print("Syntax Error (Code 002)")
         return False 
     a, b = None, None
-    
-    # # DEBUG SKILLS
-    # ############################################    
-    # print("\n".join([str(i) for i in not_final]))
-    # ############################################    
-    # print("\n"*3)
-    #endregion
-    
-    
-    #region Aslında string olan tokenları temizleme
-    prev_tag = ""
-    new_not_final = []
-    for part in not_final:
-        if prev_tag == part.tags and not "token" in part.tags:
-            new_not_final[-1].data += part.data
-        else:
-            new_not_final.append(part)
-            prev_tag = part.tags
-    not_final = new_not_final
-    new_not_final = None
+    return True
 
-    #endregion #########################################    
-    
-    
-    if not_final[0].data == "[":
-        return init_list(not_final[1:])
-    elif not_final[0].data == "{":
-        return init_dict(not_final[1:])
-    elif not_final[0].data == "(":
-        return init_tuple(not_final[1:])
-    
 
+def process_(string):    
+    tokenizers = "({[\"''\"]})"
+    final = tokenize_(string, tokenizers + ":,\\")
+    final = tag_(final, tokenizers + ":,\\")
+    syntax_check_1_(final, tokenizers)
+    
+    if final[0].data == "[":
+        return init_list(final[1:])
+    elif final[0].data == "{":
+        return init_dict(final[1:])
+    elif final[0].data == "(":
+        return init_tuple(final[1:])
+
+    
 def init_list(t_list):    
     i = 0
     final = []
-    last_used_index = -1
     current_index = 0
+    last_used_index = -1
     while i < len(t_list):
         part = t_list[i]
         
@@ -146,7 +180,7 @@ def init_list(t_list):
                 next_closing = [j for j in range(len(t_list)) if t_list[j].data == "]" and j > i]
                 
                 if len(next_closing) == 0:
-                    print("Tokenizing Error 3.")
+                    print("Syntax Error (Code 003)")
                     return False 
                 
                 next_closing = next_closing[0]
@@ -154,14 +188,14 @@ def init_list(t_list):
                     final.append(init_list(t_list[(i+1):(next_closing+1)]))
                     last_used_index = current_index
                 else:
-                    print("Tokenizing Error 4,")
+                    print("Syntax Error (,) (Code 004)")
                     return False
                 i = next_closing
             
             elif part.data == "(":
-                next_closing = [j for j in range(len(t_list)) if t_list[j].data == ")"]
+                next_closing = [j for j in range(len(t_list)) if t_list[j].data == ")" and j > i]
                 if len(next_closing) == 0:
-                    print("Tokenizing Error 3.")
+                    print("Syntax Error (Code 003)")
                     return False
                 
                 next_closing = next_closing[0]
@@ -169,14 +203,14 @@ def init_list(t_list):
                     final.append(init_tuple(t_list[(i+1):(next_closing+1)]))
                     last_used_index = current_index
                 else:
-                    print("Tokenizing Error 4,")
+                    print("Syntax Error (,) (Code 004)")
                     return False
                 i = next_closing
             
             elif part.data == "{":
-                next_closing = [j for j in range(len(t_list)) if t_list[j].data == "}"]
+                next_closing = [j for j in range(len(t_list)) if t_list[j].data == "}" and j > i]
                 if len(next_closing) == 0:
-                    print("Tokenizing Error 3.")
+                    print("Syntax Error (Code 003)")
                     return False
                 
                 next_closing = next_closing[0]
@@ -184,7 +218,7 @@ def init_list(t_list):
                     final.append(init_dict(t_list[(i+1):(next_closing+1)]))
                     last_used_index = current_index
                 else:
-                    print("Tokenizing Error 4,")
+                    print("Syntax Error (,) (Code 004)")
                     return False
                 i = next_closing
                 
@@ -193,29 +227,134 @@ def init_list(t_list):
             
             elif part.data == ",":
                 current_index += 1
+            
+            else:
+                print("Syntax Error (Code 005)")
+                return False
         
         else:
             if (current_index-1) == last_used_index:
-                final.append(part.data)    
+                if "str" in part.tags:
+                    final.append(part.data)
+                elif "int" in part.tags:
+                    final.append(int(part.data))
+                elif "float" in part.tags:
+                    final.append(float(part.data))
+                elif "bool" in part.tags:
+                    # Kontrolü yukarda bool olarak işaretlerken yapmıştık
+                    final.append(True if part.data == "True" else False)
+
                 last_used_index = current_index
             else:
-                print("Tokenizing Error 4,")
+                print("Syntax Error (,) (Code 004)")
                 return False
-        
         i += 1
-    
     return final
     
+    
+def init_init(t_list, current_index, type):
+    pass
+    
+    
+def init_tuple(t_list):
+    i = 0
+    final = []
+    current_index = 0
+    last_used_index = -1
+    while i < len(t_list):
+        part = t_list[i]
+        
+        if "token" in part.tags:
+            if part.data == "[":            
+                next_closing = [j for j in range(len(t_list)) if t_list[j].data == "]" and j > i]
+                
+                if len(next_closing) == 0:
+                    print("Syntax Error (Code 003)")
+                    return False 
+                
+                next_closing = next_closing[0]
+                if (current_index-1) == last_used_index:
+                    final.append(init_list(t_list[(i+1):(next_closing+1)]))
+                    last_used_index = current_index
+                else:
+                    print("Syntax Error (,) (Code 004)")
+                    return False
+                i = next_closing
+            
+            elif part.data == "(":
+                next_closing = [j for j in range(len(t_list)) if t_list[j].data == ")" and j > i]
+                if len(next_closing) == 0:
+                    print("Syntax Error (Code 003)")
+                    return False
+                
+                next_closing = next_closing[0]
+                if (current_index-1) == last_used_index:
+                    final.append(init_tuple(t_list[(i+1):(next_closing+1)]))
+                    last_used_index = current_index
+                else:
+                    print("Syntax Error (,) (Code 004)")
+                    return False
+                i = next_closing
+            
+            elif part.data == "{":
+                next_closing = [j for j in range(len(t_list)) if t_list[j].data == "}" and j > i]
+                if len(next_closing) == 0:
+                    print("Syntax Error (Code 003)")
+                    return False
+                
+                next_closing = next_closing[0]
+                if (current_index-1) == last_used_index:
+                    final.append(init_dict(t_list[(i+1):(next_closing+1)]))
+                    last_used_index = current_index
+                else:
+                    print("Syntax Error (,) (Code 004)")
+                    return False
+                i = next_closing
+                
+            elif part.data == ")":
+                return final
+            
+            elif part.data == ",":
+                current_index += 1
+
+            else:
+                print("Syntax Error (Code 005)")
+                return False
+                
+        else:
+            if (current_index-1) == last_used_index:
+                if "str" in part.tags:
+                    final.append(part.data)
+                elif "int" in part.tags:
+                    final.append(int(part.data))
+                elif "float" in part.tags:
+                    final.append(float(part.data))
+                elif "bool" in part.tags:
+                    # Kontrolü yukarda bool olarak işaretlerken yapmıştık
+                    final.append(True if part.data == "True" else False)
+
+                last_used_index = current_index
+            else:
+                print("Syntax Error (,) (Code 004)")
+                return False
+        i += 1
+    return final
+    
+
 def timer(func):
     def wrapper():
         start = time.time()
         func()
         print(time.time() - start)
     return wrapper
+
     
 @timer
 def test():
-    print(process_("[['tuna(pro)'], 1234, []]"))
+    tester = "[['tuna((pro)\\''], 1234, [], [[[0, True, 'False']]]]"
+    print(tester)
+    print(process_(tester))
+
 
 if __name__ == "__main__":
     test()
