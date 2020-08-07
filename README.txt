@@ -1,1 +1,1 @@
-Bitirmeden bırakacağımı biliyorum
+Bitirince burada paylaşmayı düşünüyorum
