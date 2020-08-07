@@ -147,7 +147,7 @@ def init_list(t_list):
                 
                 if len(next_closing) == 0:
                     print("Tokenizing Error 3.")
-                    return False
+                    return False 
                 
                 next_closing = next_closing[0]
                 if (current_index-1) == last_used_index:
