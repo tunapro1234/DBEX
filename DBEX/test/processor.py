@@ -228,7 +228,7 @@ def init_list(t_list):
             elif part.data == ",":
                 current_index += 1
             
-            else:
+            elif part.data == ")}":
                 print("Syntax Error (Code 005)")
                 return False
         
@@ -249,80 +249,72 @@ def init_list(t_list):
                 print("Syntax Error (,) (Code 004)")
                 return False
         i += 1
-    return final
+    # return final
+    return "çok ilginç"
     
     
-def init_init(t_list, current_index, type):
-    pass
+def init_init(t_list, current_index, closing):
+    next_closing = [j for j in range(len(t_list)) if t_list[j].data == closing and j > current_index]
+    if len(next_closing) == 0:
+        print("Syntax Error (Code 003)")
+        return False 
+    next_closing = next_closing[0]
+    return t_list[(current_index+1):(next_closing+1)], next_closing
     
     
 def init_tuple(t_list):
     i = 0
     final = []
-    current_index = 0
-    last_used_index = -1
+    # son kullanılan index
+    lui = -1
+    # tuple cursorı
+    ci = 0
     while i < len(t_list):
         part = t_list[i]
         
         if "token" in part.tags:
             if part.data == "[":            
-                next_closing = [j for j in range(len(t_list)) if t_list[j].data == "]" and j > i]
-                
-                if len(next_closing) == 0:
-                    print("Syntax Error (Code 003)")
-                    return False 
-                
-                next_closing = next_closing[0]
-                if (current_index-1) == last_used_index:
-                    final.append(init_list(t_list[(i+1):(next_closing+1)]))
-                    last_used_index = current_index
+                if (ci-1) == lui:
+                    a, next_closing = init_init(t_list, i, "]")
+                    final.append(init_list(a))
+                    lui=ci
                 else:
                     print("Syntax Error (,) (Code 004)")
                     return False
                 i = next_closing
             
             elif part.data == "(":
-                next_closing = [j for j in range(len(t_list)) if t_list[j].data == ")" and j > i]
-                if len(next_closing) == 0:
-                    print("Syntax Error (Code 003)")
-                    return False
-                
-                next_closing = next_closing[0]
-                if (current_index-1) == last_used_index:
-                    final.append(init_tuple(t_list[(i+1):(next_closing+1)]))
-                    last_used_index = current_index
+                if (ci-1) == lui:
+                    a, next_closing = init_init(t_list, i, ")")
+                    final.append(init_list(a))
+                    lui=ci
                 else:
                     print("Syntax Error (,) (Code 004)")
                     return False
                 i = next_closing
             
             elif part.data == "{":
-                next_closing = [j for j in range(len(t_list)) if t_list[j].data == "}" and j > i]
-                if len(next_closing) == 0:
-                    print("Syntax Error (Code 003)")
-                    return False
-                
-                next_closing = next_closing[0]
-                if (current_index-1) == last_used_index:
-                    final.append(init_dict(t_list[(i+1):(next_closing+1)]))
-                    last_used_index = current_index
+                if (ci-1) == lui:
+                    a, next_closing = init_init(t_list, i, "}")
+                    final.append(init_list(a))
+                    lui=ci
                 else:
                     print("Syntax Error (,) (Code 004)")
                     return False
                 i = next_closing
                 
             elif part.data == ")":
-                return final
+                return tuple(final)
             
             elif part.data == ",":
-                current_index += 1
+                ci += 1
 
-            else:
+            elif part.data == "]}":
                 print("Syntax Error (Code 005)")
                 return False
                 
         else:
-            if (current_index-1) == last_used_index:
+            if (ci-1) == lui:
                 if "str" in part.tags:
                     final.append(part.data)
                 elif "int" in part.tags:
@@ -332,14 +324,17 @@ def init_tuple(t_list):
                 elif "bool" in part.tags:
                     # Kontrolü yukarda bool olarak işaretlerken yapmıştık
                     final.append(True if part.data == "True" else False)
-
-                last_used_index = current_index
+                lui=ci
             else:
                 print("Syntax Error (,) (Code 004)")
                 return False
         i += 1
-    return final
+    return "çok ilginç"
     
+
+def init_dict(t_list):
+    raise NotImplementedError
+
 
 def timer(func):
     def wrapper():
@@ -351,7 +346,8 @@ def timer(func):
     
 @timer
 def test():
-    tester = "[['tuna((pro)\\''], 1234, [], [[[0, True, 'False']]]]"
+    tester = "[['tuna((pro)\\''], 1234, ([], [0], True, 'False')]"
+    # tester = "('tunapro')"
     print(tester)
     print(process_(tester))
 
