@@ -161,19 +161,17 @@ def process_(string):
     syntax_check_1_(final, tokenizers)
     
     if final[0].data == "[":
-        return init_list(final[1:])
+        return init_list(final[1:])[0]
     elif final[0].data == "{":
-        return init_dict(final[1:])
+        return init_dict(final[1:])[0]
     elif final[0].data == "(":
-        return init_tuple(final[1:])
+        return init_tuple(final[1:])[0]
 
     
 def init_list(t_list):    
     i = 0
     final = []
-    # son kullanılan index
     lui = -1
-    # tuple cursorı
     ci = 0
     while i < len(t_list):
         part = t_list[i]
@@ -249,26 +247,48 @@ def init_list(t_list):
     
     
 def init_tuple(t_list):
+    # init_list bunun neredeyse aynısı anlatma gereği duymuyorum 
     i = 0
     final = []
+    
     # son kullanılan index
     lui = -1
+    
     # tuple cursorı
     ci = 0
+    
+    #   recursion kullanırken imleçle 
+    # oynamam gerekebiliyor yoksa for adamdır
     while i < len(t_list):
+        # İmlecin üzerinde olduğu parça
         part = t_list[i]
         
+        # Eğer tokensa
         if "token" in part.tags:
+            # Hangi tür olduğuna göre fonksiyon çağır
             if part.data == "[":            
                 if (ci-1) == lui:
-                    # a, next_closing = init_init(t_list, i, "]")
+                    # Yeni bir liste oluşturmak için fonksiyonu çağırıyor
+                    
+                    #   yeni çağırdığımız listenin nerde bittiğini j 
+                    # değişkeni ile öğrenip imleci oraya atıyoruz
                     rv, j = init_list(t_list[i+1:])
+                    #   rv de işlenmiş liste
+                    
+                    # işlenmiş listeyi ekliyoruz
                     final.append(rv)
+                    
+                    #   ve içinde bulunduğumuz tupleın (şu anda array) 
+                    # kullandığımız indexinin kullanılmış olduğunu belirtiyoruz
                     lui=ci
+                    # ki virgül koymadan yeni bir indexe atlamasın
+                    # işte virgül koyunca ci yi bir arttırıyoruz sonra ikisi farklı oluyor filan
                 else:
+                    # virgül koymadan yeni eleman eklenemiyor
                     print("Syntax Error (,) (Code 004)")
                     return False
-                # i = next_closing
+                # Yukarda dediğim atlama
+                # Diğerleri de aynı işte
                 i += j
             
             elif part.data == "(":
@@ -296,17 +316,24 @@ def init_tuple(t_list):
                 i += j
                 
             elif part.data == ")":
+                # Kaptıyorsan kapat
                 return tuple(final), i+1
-            
+                #   i+1 olmasının sebebi sonsuz döngüye girmesin diye parantez 
+                # açma parçasını atlayarak parçaları fonksiyona vermem
             elif part.data == ",":
                 ci += 1
 
             elif part.data == "]}":
-                print("Syntax Error (Code 005)")
+                # Yanlış kapatma 
+                print("Syntax Error (]}) (Code 005)")
+                # Zaten kesin daha önce syntax error döndürür
                 return False
                 
+        # Aktif parça token değilse
         else:
+            # Virgül koyulup yeni yer açılmışsa
             if (ci-1) == lui:
+                # ekle işte
                 if "str" in part.tags:
                     final.append(part.data)
                 elif "int" in part.tags:
@@ -316,34 +343,46 @@ def init_tuple(t_list):
                 elif "bool" in part.tags:
                     # Kontrolü yukarda bool olarak işaretlerken yapmıştık
                     final.append(True if part.data == "True" else False)
+                    # tag_ fonksiyonunda olması lazım
+                # luici kesinlikle kasıtlı değildi
                 lui=ci
+                # Yukarda demiştim zaten işte
+                # Kullanıldığını belirtme filan
             else:
+                # lui ile ci farklı olmazsa virgül koyulmadıüını anlıyor
                 print("Syntax Error (,) (Code 004)")
                 return False
+        # Sonraki elemana geç
         i += 1
+        # For döngülerinde acaba imleci buradaki gibi oynatabiliyor muyum
+        
+    # Burda da syntax error verdirmem gerekiyor 
+    # Ama daha önce syntax errore yakalanmayıp buraya kadar gelebildiyse gelsin
     return "çok ilginç"
     
 
 def init_dict(t_list):
+    # Muhtemelen bunu yazamayacağım
     raise NotImplementedError
 
 
+#   ilk baştaki mal tokenizing algoritmamda sorting 
+# metodunu değiştirmenin ne kadar etkileyecğini görmek içindi
 def timer(func):
+    # Güzel özellik 
     def wrapper():
         start = time.time()
         func()
         print(time.time() - start)
     return wrapper
-
     
-@timer
+# @timer
 def test():
     tester = "(['tuna((pro)\\''], 1234, ([], ((0)), True, 'False'))"
     # tester = '("tunapro", (()), [[]], [(0, "[\\"]")])'
     # tester = "('tunapro1234', (()), (0, '[\\]'))"
     print(tester)
-    rv, _ = process_(tester)
-    print(rv)
+    print(process_(tester))
 
 if __name__ == "__main__":
     test()
