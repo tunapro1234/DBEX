@@ -1,17 +1,16 @@
 import time
+import json
 
-
-"""DONE
-int-string değerlendirmeleri
-
-
-
-""""TODO""""
-\ eklenecek
-dict tuple düzenlemeleri
+"""TODO
+'"a"'
+array generator
+\ geliştirilecek
 ana yapı kısıtlaması
-error isimlendirmeleri
+dict tuple düzenlemeleri
 print-return yerine raise Exception
+tuple ve array fonksiyonlarını birleştir
+    It also understands ``NaN``, ``Infinity``, and ``-Infinity`` as
+    their corresponding ``float`` values, which is outside the JSON spec.
 """
 
 def tokenize_(string, tokenizers, settings=None, banned_chars=None):
@@ -106,11 +105,14 @@ def tag_(arr, tokenizers):
             if is_string:
                 tag = "str#"
             else:
-                part = part.replace(" ", "")
+                # part = part.replace(" ", "")
+                part = part.strip()
                 if part.isdigit():
                     tag = "int#"
                 elif part.replace('.', '', 1).isdigit():
                     tag = "float#"
+                elif part in ["None"]:
+                    tag = "none#"
                 elif part in ["True", "False"]:
                     tag = "bool#"
                 elif part == "":
@@ -154,7 +156,7 @@ def syntax_check_1_(arr, tokenizers):
     return True
 
 
-def process_(string):    
+def loads(string):
     tokenizers = "({[\"''\"]})"
     final = tokenize_(string, tokenizers + ":,\\")
     final = tag_(final, tokenizers + ":,\\")
@@ -165,76 +167,81 @@ def process_(string):
     elif final[0].data == "{":
         return init_dict(final[1:])[0]
     elif final[0].data == "(":
-        return init_tuple(final[1:])[0]
+        return init_list(final[1:], tuple_mode=1)[0]
+    elif len(final) == 1:
+        return final[0].data
+    
 
     
-def init_list(t_list):    
-    i = 0
-    final = []
-    lui = -1
-    ci = 0
-    while i < len(t_list):
-        part = t_list[i]
+# def init_list(t_list):    
+#     i = 0
+#     final = []
+#     lui = -1
+#     ci = 0
+#     while i < len(t_list):
+#         part = t_list[i]
         
-        if "token" in part.tags:
-            if part.data == "[":            
-                if (ci-1) == lui:
-                    rv, j = init_list(t_list[i+1:])
-                    final.append(rv)
-                    lui=ci
-                else:
-                    print("Syntax Error (,) (Code 004)")
-                    return False
-                i += j
+#         if "token" in part.tags:
+#             if part.data == "[":            
+#                 if (ci-1) == lui:
+#                     rv, j = init_list(t_list[i+1:])
+#                     final.append(rv)
+#                     lui=ci
+#                 else:
+#                     print("Syntax Error (,) (Code 004)")
+#                     return False
+#                 i += j
             
-            elif part.data == "(":
-                if (ci-1) == lui:
-                    rv, j = init_tuple(t_list[i+1:])
-                    final.append(rv)
-                    lui=ci
-                else:
-                    print("Syntax Error (,) (Code 004)")
-                    return False
-                i += j
+#             elif part.data == "(":
+#                 if (ci-1) == lui:
+#                     rv, j = init_tuple(t_list[i+1:])
+#                     final.append(rv)
+#                     lui=ci
+#                 else:
+#                     print("Syntax Error (,) (Code 004)")
+#                     return False
+#                 i += j
             
-            elif part.data == "{":
-                if (ci-1) == lui:
-                    rv, j = init_dict(t_list[i+1:])
-                    final.append(rv)
-                    lui=ci
-                else:
-                    print("Syntax Error (,) (Code 004)")
-                    return False
-                i += j
+#             elif part.data == "{":
+#                 if (ci-1) == lui:
+#                     rv, j = init_dict(t_list[i+1:])
+#                     final.append(rv)
+#                     lui=ci
+#                 else:
+#                     print("Syntax Error (,) (Code 004)")
+#                     return False
+#                 i += j
                 
-            elif part.data == "]":
-                return final, i+1
+#             elif part.data == "]":
+#                 return final, i+1
             
-            elif part.data == ",":
-                ci += 1
+#             elif part.data == ",":
+#                 ci += 1
             
-            elif part.data == ")}":
-                print("Syntax Error (Code 005)")
-                return False
+#             elif part.data == ")}":
+#                 print("Syntax Error (Code 005)")
+#                 return False
         
-        else:
-            if (ci-1) == lui:
-                if "str" in part.tags:
-                    final.append(part.data)
-                elif "int" in part.tags:
-                    final.append(int(part.data))
-                elif "float" in part.tags:
-                    final.append(float(part.data))
-                elif "bool" in part.tags:
-                    # Kontrolü yukarda bool olarak işaretlerken yapmıştık
-                    final.append(True if part.data == "True" else False)
-                lui=ci
-            else:
-                print("Syntax Error (,) (Code 004)")
-                return False
-        i += 1
-    # return final
-    return "error"
+#         else:
+#             if (ci-1) == lui:
+#                 if "none" in part.tags:
+#                     final.append(None)
+#                 elif "str" in part.tags:
+#                     final.append(part.data)
+#                 elif "int" in part.tags:
+#                     final.append(int(part.data))
+#                 elif "float" in part.tags:
+#                     final.append(float(part.data))
+#                 elif "bool" in part.tags:
+#                     # Kontrolü yukarda bool olarak işaretlerken yapmıştık
+#                     final.append(True if part.data == "True" else False)
+#                 lui=ci
+#             else:
+#                 print("Syntax Error (,) (Code 004)")
+#                 return False
+#         i += 1
+#     # return final
+#     return "error"
     
     
 # def init_init(t_list, current_index, closing):
@@ -246,7 +253,7 @@ def init_list(t_list):
 #     return t_list[(current_index+1):(next_closing+1)], next_closing
     
     
-def init_tuple(t_list):
+def init_list(t_list, tuple_mode=False):
     # init_list bunun neredeyse aynısı anlatma gereği duymuyorum 
     i = 0
     final = []
@@ -256,6 +263,9 @@ def init_tuple(t_list):
     
     # tuple cursorı
     ci = 0
+    
+    closing = ")" if tuple_mode else "]"
+    err_closing = "".join([i for i in "]})" if i != closing])
     
     #   recursion kullanırken imleçle 
     # oynamam gerekebiliyor yoksa for adamdır
@@ -294,7 +304,7 @@ def init_tuple(t_list):
             elif part.data == "(":
                 if (ci-1) == lui:
                     # a, next_closing = init_init(t_list, i, ")")
-                    rv, j = init_tuple(t_list[i+1:])
+                    rv, j = init_list(t_list[i+1:], tuple_mode=1)
                     final.append(rv)
                     lui=ci
                 else:
@@ -315,15 +325,19 @@ def init_tuple(t_list):
                 # i = next_closing
                 i += j
                 
-            elif part.data == ")":
-                # Kaptıyorsan kapat
-                return tuple(final), i+1
-                #   i+1 olmasının sebebi sonsuz döngüye girmesin diye parantez 
-                # açma parçasını atlayarak parçaları fonksiyona vermem
+            elif part.data == closing:
+                # Kapatıyorsan kapat
+                if tuple_mode:
+                    return tuple(final), i+1
+                    #   i+1 olmasının sebebi sonsuz döngüye girmesin diye parantez 
+                    # açma parçasını atlayarak parçaları fonksiyona vermem
+                else:
+                    return final, i+1
+            
             elif part.data == ",":
                 ci += 1
 
-            elif part.data == "]}":
+            elif part.data in err_closing:
                 # Yanlış kapatma 
                 print("Syntax Error (]}) (Code 005)")
                 # Zaten kesin daha önce syntax error döndürür
@@ -334,7 +348,9 @@ def init_tuple(t_list):
             # Virgül koyulup yeni yer açılmışsa
             if (ci-1) == lui:
                 # ekle işte
-                if "str" in part.tags:
+                if "none" in part.tags:
+                    final.append(None)
+                elif "str" in part.tags:
                     final.append(part.data)
                 elif "int" in part.tags:
                     final.append(int(part.data))
@@ -368,7 +384,7 @@ def init_dict(t_list):
 
 #   ilk baştaki mal tokenizing algoritmamda sorting 
 # metodunu değiştirmenin ne kadar etkileyecğini görmek içindi
-def timer(func):
+def timer_(func):
     # Güzel özellik 
     def wrapper():
         start = time.time()
@@ -376,13 +392,16 @@ def timer(func):
         print(time.time() - start)
     return wrapper
     
-# @timer
+@timer_
 def test():
-    tester = "(['tuna((pro)\\''], 1234, ([], ((0)), True, 'False'))"
-    # tester = '("tunapro", (()), [[]], [(0, "[\\"]")])'
+    # 0.016243457794189453
+    # tester = "[(['tuna((pro)'], 1234, ([], ((0)), None, 'None'))]"
+    tester = '("tunapro", (()), [[]], [(0, "[\\"]")])'
     # tester = "('tunapro1234', (()), (0, '[\\]'))"
+    # tester = '"a"'
     print(tester)
-    print(process_(tester))
+    print(loads(tester))
+    
 
 if __name__ == "__main__":
     test()
