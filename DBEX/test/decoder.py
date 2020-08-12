@@ -337,20 +337,25 @@ def print_gen(gen):
         if isinstance(i, types.GeneratorType):
             print_gen(i)
         else:
-            print(i, end="")
+            if type(i) == str:
+                print("\"" + i + "\"", end="")
+            else:
+                print(i, end="")
+                
         print(", ", end="")
+        time.sleep(0.5)
     print("]", end="")
     
     
 @timer_
 def test():
     # 0.016243457794189453
-    tester = "[(['tuna((pro)'], 1234, ([], ((0)), None, 'None'))]"
+    tester = "[['tuna((pro)'], 1234, [[], ((0)), None, 'None']]"
     # tester = '("tunapro", (()), [[]], [(0, "[\\"]")])'
     # tester = "('tunapro1234', (()), (0, '[\\]'))"
     # tester = '"a"'
     print(tester)
-    print(loads(tester, generator=1))
+    print_gen(loads(tester, generator=1))
     
 
 if __name__ == "__main__":
