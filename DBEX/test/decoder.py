@@ -1,6 +1,6 @@
+import types
 import time
 import json
-
 """TODO
 '"a"'
 init_dict
@@ -155,46 +155,42 @@ def syntax_check_1_(arr, tokenizers):
     return True
 
 
-def loads(string, generator=True):
+def loads(string, generator="all"):
     tokenizers = "({[\"''\"]})"
     final = tokenize_(string, tokenizers + ":,\\")
     final = tag_(final, tokenizers + ":,\\")
     syntax_check_1_(final, tokenizers)
     
-    if final[0].data == "[":
-        if generator:
-            return init_list_gen(final[1:])
-        else:
-            def new_gen():
-                for i in init_list_gen(final[1:]):
-                    yield i
-            gen_to_list(new_gen)
+    if final[0].data in "[({":
+        if final[0].data == "[":
+            if generator:
+                return init_list_gen(final[1:])
+            else:
+                init_func = init_list_gen
+            
+        elif final[0].data == "{":
+            if generator:
+                return init_dict_gen(final[1:])
+            else:
+                init_func = init_dict_gen
         
-    elif final[0].data == "{":
-        if generator:
-            return init_dict_gen(final[1:])
-        else:
-            def new_gen():
-                for i in init_dict_gen(final[1:]):
-                    yield i
-            gen_to_list(new_gen)
-    
-    elif final[0].data == "(":
-        if generator:
-            return init_list_gen(final[1:], tuple_mode=1)
-        else:
-            def new_gen():
-                for i in init_list_gen(final[1:]):
-                    yield i
-            gen_to_list(new_gen)
-    
+        elif final[0].data == "(":
+            # if generator:
+            #     return init_list_gen(final[1:], tuple_mode=1)
+            # else:
+            
+            # (tuple için generatorı kapattım)
+            return tuple(gen_to_list((i for i in init_list_gen(final[1:], tuple_mode=1))))
+        
+        return gen_to_list((i for i in init_func(final[1:])))
+            
     elif len(final) == 1:
         return final[0].data
     
     
-def find_next_closing(arr, index, type="[]"):
+def find_next_closing(arr, index, type):
     cot = 1
-    for i in range(index, len(arr)):        
+    for i in range(index+1, len(arr)):      
         if arr[i].data == type[0]:
             cot += 1
         elif arr[i].data == type[1]:
@@ -203,7 +199,12 @@ def find_next_closing(arr, index, type="[]"):
         if cot == 0:
             return i
             
+            
+def init_tuple_gen(t_list):
+    for i in init_list_gen(t_list, tuple_mode=True):
+        yield i
     
+                
 def init_list_gen(t_list, tuple_mode=False):
     # son kullanılan index
     lui = -1
@@ -233,35 +234,26 @@ def init_list_gen(t_list, tuple_mode=False):
             if part.data in "[{(":
                 if part.data == "[":
                     next_closing = find_next_closing(t_list, index, "[]")
-                    def new_gen():
-                        for i in init_list_gen(t_list[(index+1):next_closing]):
-                            yield i
+                    new_gen = (i for i in init_list_gen(t_list[(index+1):next_closing]))
 
                 elif part.data == "{":
                     next_closing = find_next_closing(t_list, index, "{}")
-                    def new_gen():
-                        for i in init_dict_(t_list[(index+1):next_closing]):
-                            yield i
+                    new_gen = (i for i in init_dict_(t_list[(index+1):next_closing]))
 
                 elif part.data == "(":
                     next_closing = find_next_closing(t_list, index, "()")
-                    def new_gen():
-                        for i in init_list_gen(t_list[(index+1):next_closing], tuple_mode=1):
-                            yield i
+                    new_gen = tuple(gen_to_list((i for i in init_list_gen(t_list[(index+1):next_closing], tuple_mode=1))))
+
                 else:
                     raise Exception("Unknown Error (Code 00-1)")
                 
                 skip = (next_closing+1)
                 
                 if (ci-1) == lui:
-                    # Yeni bir liste oluşturmak için fonksiyonu çağırıyor
-                    
-                    #   yeni çağırdığımız listenin nerde bittiğini j 
-                    # değişkeni ile öğrenip imleci oraya atıyoruz
+                    # Buralar çok değişti en son yazmak en mantıklısıymış
                     yield new_gen
-                    #   rv de işlenmiş liste
                     
-                    #   ve içinde bulunduğumuz tupleın (şu anda arr"ay) 
+                    #   ve içinde bulunduğumuz listenin
                     # kullandığımız indexinin kullanılmış olduğunu belirtiyoruz
                     lui=ci
                     # ki virgül koymadan yeni bir indexe atlamasın
@@ -329,28 +321,36 @@ def timer_(func):
     return wrapper
     
     
-def gen_runner(gen, func):
-    for i in gen():
-        if callable(i):
-            func(gen_runner(i, func))
-        else:
-            func()
-    
 def gen_to_list(gen):
     final = []
-    gen_runner(gen, final.append)
+    for i in gen:
+        if isinstance(i, types.GeneratorType):
+            final.append(gen_to_list(i))
+        else:
+            final.append(i)
     return final
+    
+
+def print_gen(gen):
+    print("[", end="")
+    for i in gen:
+        if isinstance(i, types.GeneratorType):
+            print_gen(i)
+        else:
+            print(i, end="")
+        print(", ", end="")
+    print("]", end="")
     
     
 @timer_
 def test():
     # 0.016243457794189453
-    # tester = "[(['tuna((pro)'], 1234, ([], ((0)), None, 'None'))]"
-    tester = '("tunapro", (()), [[]], [(0, "[\\"]")])'
+    tester = "[(['tuna((pro)'], 1234, ([], ((0)), None, 'None'))]"
+    # tester = '("tunapro", (()), [[]], [(0, "[\\"]")])'
     # tester = "('tunapro1234', (()), (0, '[\\]'))"
     # tester = '"a"'
     print(tester)
-    print(loads(tester, generator=0))
+    print(loads(tester, generator=1))
     
 
 if __name__ == "__main__":

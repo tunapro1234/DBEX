@@ -1,3 +1,4 @@
+import types
 def find_next_closing(arr, index, type="[]"):
     cot = 1
     for i in range(index, len(arr)):        
@@ -20,12 +21,8 @@ def b(arr):
                 continue
         if part == "[":
             next_closing = find_next_closing(arr, index, "[]")
-
-            def new_gen():
-                for i in b(arr[(index+1):next_closing]):
-                    yield i
+            yield (i for i in b(arr[(index+1):next_closing]))
             skip = (next_closing+1)
-            yield new_gen
         
         elif part == "]":
             break
@@ -42,16 +39,13 @@ def init_list(gen):
             final.append(i)
     return final
     
-def gen_runner(gen, func, master):
-    for i in gen():
-        if callable(i):
-            func(master(i))
-        else:
-            func(i)
-    
 def gen_to_list(gen):
     final = []
-    gen_runner(gen, final.append, gen_to_list)
+    for i in gen:
+        if isinstance(i, types.GeneratorType):
+            final.append(gen_to_list(i))
+        else:
+            final.append(i)
     return final
     
 def a():
@@ -64,9 +58,5 @@ if __name__ == "__main__":
     test_arr = ["[", "[", "'tunapro'", "]", "]"]
     
     if test_arr[0] == "[":
-        def new_gen2():
-            for i in b(test_arr[1:]):
-                yield i
-        
-        print(gen_runner(new_gen2, print, empty))
+        print(gen_to_list((i for i in b(test_arr[1:]))))
     
