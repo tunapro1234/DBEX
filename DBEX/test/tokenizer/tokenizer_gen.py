@@ -1,24 +1,59 @@
 import time
 
-def tokenize_(string, tokenizers, settings=None, banned_chars=None):
-    # girdilerin doğruluğu kontrol ediliyor
-    try:
-        if type(tokenizers[0]) != str or type(string[0]) != str: 
-            raise Exception("")
-    except:
-        print("Tokenizer input error")
-        return False
-
-    final = []
+def tokenize_gen(string, tokenizers="[{(\\,\"')}]"):
     last_index = 0
-    # final = [string[:indexes[0]]]
+    active_str = None
+    is_string = False
+    is_prv_bs = False
+    for index, char in enumerate(string):
+        new_part = []
+        if char in tokenizers:
+            if index > (last_index + 1):
+                new_part.append("".join(string[(last_index + 1):index]))
+            new_part.append(char)
+            last_index = index
+
+        elif index == len(string) - 1:
+            new_part.append("".join(string[(last_index + 1):]))
+
+        for part in new_part:
+            if part in ["'", '"', "\\"]: 
+                if part in ["'", '"']:
+                    if is_string:
+                        is_string = False if is_string == part else is_string
+                        if not is_string:
+                            active_str.append(part)
+                            yield "".join(active_str)
+                            active_str = None
+                            is_string = False
+                        else:
+                            active_str.append(part)
+                    else:
+                        is_string = part
+                        active_str = [part]
+                elif part == "\\":
+                    if is_string:
+                        if (is_prv_bs := bool(1 - is_prv_bs)):
+                            active_str.append("\\")
+                    else:
+                        raise Exception("Syntax Error (\\)")
+            else:
+                if is_string:
+                    active_str.append(part)
+                else:
+                    yield part
+
+
+def tokenize_(string, tokenizers, settings=None, banned_chars=None):
+    last_index = 0
     for index, char in enumerate(string):
         # ayıklanması istenen karakterlerden birine denk gelindiğinde
         if char in tokenizers:
             # last_index değişkeni ile ayıklancak karakter arasını ekle
-            final.append(string[(last_index + 1):index])
+            if index > (last_index + 1):
+                yield "".join(string[(last_index + 1):index])
             # ayıklanacak karakteri ekle
-            final.append(char)
+            yield char
             # last_index değişkenini yenile
             last_index = index
 
@@ -26,25 +61,25 @@ def tokenize_(string, tokenizers, settings=None, banned_chars=None):
         # bize verilen stringin son elemanı değilse
         elif index == len(string) - 1: # and last_index == index:
             # en son bulunan tokendan sonrasını da ekle
-            final.append(string[(last_index + 1):])
+            yield "".join(string[(last_index + 1):])
         
         # ilk başta çıkarılması istenen karakterlerden biri varsa final arrayinin 
         # ilk elemanı "" oluyordu onu engellemek için alttaki list comprehension var
-    final = [j for i, j in enumerate(final) if j != ""] # and i != 0 
+    # final = [j for i, j in enumerate(final) if j != ""] # and i != 0 
     
     # istenmeyen karakter belirtildiyse
-    if banned_chars is not None:
-        banned_final = []
-        # arrayin içindeki her parçanın her karakteri için
-        for part in final:
-            # istenmeyen karakter olup olmadığını kontrol edip istenenleri yeni değişkene ekle
-            banned_final.append("".join([char for char in part if not char in banned_chars]))
-        final = banned_final
+    # if banned_chars is not None:
+    #     banned_final = []
+    #     # arrayin içindeki her parçanın her karakteri için
+    #     for part in final:
+    #         # istenmeyen karakter olup olmadığını kontrol edip istenenleri yeni değişkene ekle
+    #         banned_final.append("".join([char for char in part if not char in banned_chars]))
+    #     final = banned_final
         
-    return final
+    # return final
 
 
-def tag_2(arr):
+def tag_gen(arr):
     active_str = None
     is_string = False
     is_prv_bs = False
@@ -121,10 +156,10 @@ def tag_2(arr):
 
 
 def test():
-    # tokenizers = "[{(\\,\"')}]"
+    tokenizers = "[{(\\,\"')}]"
     # tester = ["[", "'", "tuna", "(", "pro", "'", "]"]
     tester = ["[", "'", '"', "tuna", "(", "pro", "'", "]"]
-    for i in tag_2(tester):
+    for i in tokenize_gen(tester):
         print(i, end="")
         time.sleep(0.5)
     print("")
