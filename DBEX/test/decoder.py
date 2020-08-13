@@ -1,13 +1,11 @@
 import types
 import time
 import json
+
 """TODO
-'"a"'
 init_dict
-array generator
 \ geliştirilecek
-ana yapı kısıtlaması
-print-return yerine raise Exception
+tokenize ve tag fonksiyonlarını generatora çevir
     It also understands ``NaN``, ``Infinity``, and ``-Infinity`` as
     their corresponding ``float`` values, which is outside the JSON spec.
 """
@@ -223,12 +221,13 @@ def init_list_gen(t_list, tuple_mode=False):
         # Atlama şeyini yaptım bir daha while kullanmam
         if skip:
             if skip == index:
-                next_closing, skip = False, False
+                next_closing = skip = False
             else:
                 continue
         # Geri gitme olmadığını fark ettim. while mükemmel
         
         # Eğer tokensa
+        # if part in "[{(,)}]":
         if "token" in part.tags:
             # Hangi tür olduğuna göre fonksiyon çağır
             if part.data in "[{(":
@@ -331,11 +330,11 @@ def gen_to_list(gen):
     return final
     
 
-def print_gen(gen):
+def print_gen(gen, main=True):
     print("[", end="")
     for i in gen:
         if isinstance(i, types.GeneratorType):
-            print_gen(i)
+            print_gen(i, main=False)
         else:
             if type(i) == str:
                 print("\"" + i + "\"", end="")
@@ -344,13 +343,13 @@ def print_gen(gen):
                 
         print(", ", end="")
         time.sleep(0.5)
-    print("]", end="")
+    print("]" if not main else "]\n", end="")
     
     
 @timer_
 def test():
     # 0.016243457794189453
-    tester = "[['tuna((pro)'], 1234, [[], ((0)), None, 'None']]"
+    tester = "[['tuna((pro)\\''], 1234, [[], ((0)), None, 'None']]"
     # tester = '("tunapro", (()), [[]], [(0, "[\\"]")])'
     # tester = "('tunapro1234', (()), (0, '[\\]'))"
     # tester = '"a"'
