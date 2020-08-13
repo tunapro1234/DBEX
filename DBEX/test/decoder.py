@@ -5,205 +5,86 @@ import json
 """TODO
 init_dict
 \ geliştirilecek
-tokenize ve tag fonksiyonlarını generatora çevir
     It also understands ``NaN``, ``Infinity``, and ``-Infinity`` as
     their corresponding ``float`` values, which is outside the JSON spec.
 """
 
-def tokenize_(string, tokenizers, settings=None, banned_chars=None):
-    # girdilerin doğruluğu kontrol ediliyor
-    try:
-        if type(tokenizers[0]) != str or type(string[0]) != str: 
-            raise Exception("")
-    except:
-        print("Tokenizer input error")
-        return False
-
-    final = []
+def tokenize_gen(string, tokenizers="[{(\\,\"')}]"):
     last_index = 0
-    # final = [string[:indexes[0]]]
+    active_str = None
+    is_string = False
+    is_prv_bs = False
     for index, char in enumerate(string):
-        # ayıklanması istenen karakterlerden birine denk gelindiğinde
+        new_part = []
         if char in tokenizers:
-            # last_index değişkeni ile ayıklancak karakter arasını ekle
-            final.append(string[(last_index + 1):index])
-            # ayıklanacak karakteri ekle
-            final.append(char)
-            # last_index değişkenini yenile
+            if index > (last_index + 1):
+                new_part.append("".join(string[(last_index + 1):index]))
+            new_part.append(char)
             last_index = index
 
-        # Son elemandaysak ve eklenen son şey
-        # bize verilen stringin son elemanı değilse
-        elif index == len(string) - 1: # and last_index == index:
-            # en son bulunan tokendan sonrasını da ekle
-            final.append(string[(last_index + 1):])
-        
-        # ilk başta çıkarılması istenen karakterlerden biri varsa final arrayinin 
-        # ilk elemanı "" oluyordu onu engellemek için alttaki list comprehension var
-    final = [j for i, j in enumerate(final) if j != ""] # and i != 0 
-    
-    # istenmeyen karakter belirtildiyse
-    if banned_chars is not None:
-        banned_final = []
-        # arrayin içindeki her parçanın her karakteri için
-        for part in final:
-            # istenmeyen karakter olup olmadığını kontrol edip istenenleri yeni değişkene ekle
-            banned_final.append("".join([char for char in part if not char in banned_chars]))
-        final = banned_final
-        
-    return final
+        elif index == len(string) - 1:
+            new_part.append("".join(string[(last_index + 1):]))
 
-
-def tag_(arr, tokenizers):
-    class Part:
-        def __init__(self, data, tags):
-            self.data = data
-            self.tags = tags
-
-        def __str__(self):
-                return "DATA: " + str(self.data) + " ### TAGS: " + str(self.tags)
-    
-    final = []
-    is_string = False
-    for part in arr:
-        if part in tokenizers:
-            if part == "'" or part == '"':
-                # Eğer önceki parça \ ise token sayılmayacak
-                if len(final) > 0 and "bs" in final[-1].tags:
-                    # önceki backslash str şu anki parça haline geliyor ve şu anki geçiliyor
-                    final[-1].data = part
-                    final[-1].tags = "str#"
-                    tag = "ignore#"
-                else:
-                    is_string = bool(1 - is_string)
-                    tag = "ignore#"
-                    # tag = "token#"
-            elif not is_string:
-                if part == "\\": 
-                    print("Syntax Error (\\) (Code 000)")
-                    return False
-                tag = "token#"
-            else:
-                # önümüze \ geldiyse ve string içindeysek
-                if part == "\\":
-                    # eğer önceki eleman da \ ise şu anki \ str olacak
-                    if len(final) > 0 and "bs" in final[-1].tags:
-                        # önceki backslash str haline getiriliyor ve şu anki geçiliyor
-                        final[-1].tags = "str#"
-                        tag = "ignore#"
-                    # değilse özel token olarak devam
+        for part in new_part:
+            if part in ["'", '"', "\\"]: 
+                if part in ["'", '"']:
+                    if is_string:
+                        is_string = False if is_string == part else is_string
+                        if not is_string:
+                            active_str.append(part)
+                            yield "".join(active_str)
+                            active_str = None
+                            is_string = False
+                        else:
+                            active_str.append(part)
                     else:
-                        # öncesinde backslash yoksa işaretleyip devam
-                        tag = "bs#"
-                # normal str işte
-                else:
-                    tag = "str#"
-        else:
-            if is_string:
-                tag = "str#"
+                        is_string = part
+                        active_str = [part]
+                elif part == "\\":
+                    if is_string:
+                        if (is_prv_bs := bool(1 - is_prv_bs)):
+                            active_str.append("\\")
+                    else:
+                        raise Exception("Syntax Error (\\)")
             else:
-                # part = part.replace(" ", "")
-                part = part.strip()
-                if part.isdigit():
-                    tag = "int#"
-                elif part.replace('.', '', 1).isdigit():
-                    tag = "float#"
-                elif part in ["None"]:
-                    tag = "none#"
-                elif part in ["True", "False"]:
-                    tag = "bool#"
-                elif part == "":
-                    tag = "ignore#"
+                if is_string:
+                    active_str.append(part)
                 else:
-                    print("Syntax Error (Code 001)")
-                    return False
-        if tag != "ignore#":
-            final.append(Part(part, tag))
-    
-    #region Aslında string olan tokenları stringle birleştirme
-    prev_tag = ""
-    new_final = []
-    for part in final:            
-        # \ olayı cidden sinir bozucu
-        if "bs" in part.tags:
-            part.tags = "str#"
-            # print(len(part.data))
-            
-        if prev_tag == part.tags and "str" in part.tags:
-            new_final[-1].data += part.data
-        else:
-            new_final.append(part)
-            prev_tag = part.tags
-    final = new_final
-    #endregion #########################################    
-    return final
-
-
-def syntax_check_1_(arr, tokenizers):
-    #   Parantez ve tırnak gibi şeylerin açılma ve 
-    # kapanma sayılarının aynı olup olmadığının kontrolü
-    comp = [part.data for part in arr if "token" in part.tags]
-    
-    a = [i for i in comp if i in tokenizers[:len(tokenizers)//2]]
-    b = [j for j in comp if j in tokenizers[(len(tokenizers)//2):]]
-    if len(a) != len(b):
-        print("Syntax Error (Code 002)")
-        return False 
-    a, b = None, None
-    return True
+                    yield part
 
 
 def loads(string, generator="all"):
-    tokenizers = "({[\"''\"]})"
-    final = tokenize_(string, tokenizers + ":,\\")
-    final = tag_(final, tokenizers + ":,\\")
-    syntax_check_1_(final, tokenizers)
+    generator = tokenize_gen(string)
+    first_element = next(generator)
     
-    if final[0].data in "[({":
-        if final[0].data == "[":
+    if first_element in "[({":
+        if first_element == "[":
             if generator:
-                return init_list_gen(final[1:])
+                return init_list_gen(generator)
             else:
                 init_func = init_list_gen
             
-        elif final[0].data == "{":
+        elif first_element == "{":
             if generator:
-                return init_dict_gen(final[1:])
+                return init_dict_gen(generator)
             else:
                 init_func = init_dict_gen
         
-        elif final[0].data == "(":
-            # if generator:
-            #     return init_list_gen(final[1:], tuple_mode=1)
-            # else:
-            
-            # (tuple için generatorı kapattım)
-            return tuple(gen_to_list((i for i in init_list_gen(final[1:], tuple_mode=1))))
+        elif first_element == "(":
+            return tuple(gen_to_list((i for i in init_list_gen(generator, tuple_mode=1))))
         
-        return gen_to_list((i for i in init_func(final[1:])))
+        return gen_to_list((i for i in init_func(generator)))
             
-    elif len(final) == 1:
-        return final[0].data
+    else:
+        return first_element
     
-    
-def find_next_closing(arr, index, type):
-    cot = 1
-    for i in range(index+1, len(arr)):      
-        if arr[i].data == type[0]:
-            cot += 1
-        elif arr[i].data == type[1]:
-            cot -= 1
-        
-        if cot == 0:
-            return i
-            
             
 def init_tuple_gen(t_list):
     for i in init_list_gen(t_list, tuple_mode=True):
         yield i
     
                 
-def init_list_gen(t_list, tuple_mode=False):
+def init_list_gen(t_gen, tuple_mode=False):
     # son kullanılan index
     lui = -1
     
@@ -215,38 +96,25 @@ def init_list_gen(t_list, tuple_mode=False):
     closing = ")" if tuple_mode else "]"
     err_closing = "".join([i for i in "]})" if i != closing])
     
-    for index, part in enumerate(t_list):
-        # İmlecin üzerinde olduğu parça
-        
-        # Atlama şeyini yaptım bir daha while kullanmam
-        if skip:
-            if skip == index:
-                next_closing = skip = False
-            else:
-                continue
-        # Geri gitme olmadığını fark ettim. while mükemmel
+    for part in t_gen:
+        if part.strip() == "":
+            continue
         
         # Eğer tokensa
-        # if part in "[{(,)}]":
-        if "token" in part.tags:
+        if part in "[{(\\,\"')}]":
             # Hangi tür olduğuna göre fonksiyon çağır
-            if part.data in "[{(":
-                if part.data == "[":
-                    next_closing = find_next_closing(t_list, index, "[]")
-                    new_gen = (i for i in init_list_gen(t_list[(index+1):next_closing]))
+            if part in "[{(":
+                if part == "[":
+                    new_gen = (i for i in init_list_gen(t_gen))
 
-                elif part.data == "{":
-                    next_closing = find_next_closing(t_list, index, "{}")
-                    new_gen = (i for i in init_dict_(t_list[(index+1):next_closing]))
+                elif part == "{":
+                    new_gen = (i for i in init_dict_(t_gen))
 
-                elif part.data == "(":
-                    next_closing = find_next_closing(t_list, index, "()")
-                    new_gen = tuple(gen_to_list((i for i in init_list_gen(t_list[(index+1):next_closing], tuple_mode=1))))
+                elif part == "(":
+                    new_gen = tuple(gen_to_list((i for i in init_list_gen(t_gen, tuple_mode=1))))
 
                 else:
                     raise Exception("Unknown Error (Code 00-1)")
-                
-                skip = (next_closing+1)
                 
                 if (ci-1) == lui:
                     # Buralar çok değişti en son yazmak en mantıklısıymış
@@ -265,13 +133,13 @@ def init_list_gen(t_list, tuple_mode=False):
                 # Diğerleri de aynı işte
                 # index += j
             
-            elif part.data == closing:
+            elif part == closing:
                 break
                             
-            elif part.data == ",":
+            elif part == ",":
                 ci += 1
 
-            elif part.data in err_closing:
+            elif part in err_closing:
                 # Yanlış kapatma 
                 raise Exception("Syntax Error (]}) (Code 005)")
                 # Zaten kesin daha önce syntax error döndürür
@@ -281,18 +149,23 @@ def init_list_gen(t_list, tuple_mode=False):
             # Virgül koyulup yeni yer açılmışsa
             if (ci-1) == lui:
                 # ekle işte
-                if "none" in part.tags:
+                part = part.strip()
+                # None
+                if part in ["None", "null"]:
                     yield None
-                elif "str" in part.tags:
-                    yield part.data
-                elif "int" in part.tags:
-                    yield int(part.data)
-                elif "float" in part.tags:
-                    yield float(part.data)
-                elif "bool" in part.tags:
-                    # Kontrolü yukarda bool olarak işaretlerken yapmıştık
-                    yield True if part.data == "True" else False
-                    # tag_ fonksiyonunda olması lazım
+                # String
+                elif part[0] in "\"'" and part[-1] in "\"'":
+                    yield part[1:-1]
+                # Integer
+                elif part.isdigit():
+                    yield int(part)
+                # Float
+                elif part.replace('.', '', 1).isdigit():
+                    yield float(part)
+                # Boolean
+                elif part in ["True", "true", "False", "false"]:
+                    # Şimdilik JSON uyumlu olsun hadi
+                    yield True if part in ["True", "true"] else False
                 else:
                     raise Exception("Syntax Error (Code 006)")
                 # luici kesinlikle kasıtlı değildi
@@ -342,19 +215,19 @@ def print_gen(gen, main=True):
                 print(i, end="")
                 
         print(", ", end="")
-        time.sleep(0.5)
+        # time.sleep(0.5)
     print("]" if not main else "]\n", end="")
     
     
 @timer_
 def test():
     # 0.016243457794189453
-    tester = "[['tuna((pro)\\''], 1234, [[], ((0)), None, 'None']]"
+    # tester = "[['tuna((pro)'], 1234, [[], ((0)), None, 'None']]"
     # tester = '("tunapro", (()), [[]], [(0, "[\\"]")])'
     # tester = "('tunapro1234', (()), (0, '[\\]'))"
     # tester = '"a"'
     print(tester)
-    print_gen(loads(tester, generator=1))
+    print_gen(json.loads(tester))
     
 
 if __name__ == "__main__":

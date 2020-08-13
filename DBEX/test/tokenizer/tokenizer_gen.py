@@ -158,7 +158,7 @@ def tag_gen(arr):
 def test():
     tokenizers = "[{(\\,\"')}]"
     # tester = ["[", "'", "tuna", "(", "pro", "'", "]"]
-    tester = ["[", "'", '"', "tuna", "(", "pro", "'", "]"]
+    tester = "['tunapro(1234)', \"(\\)\", None]"
     for i in tokenize_gen(tester):
         print(i, end="")
         time.sleep(0.5)
