@@ -53,19 +53,19 @@ def tokenize_gen(string, tokenizers="[{(\\,\"')}]"):
                     yield part
 
 
-def loads(string, generator="all"):
+def loads(string, is_generator="all"):
     generator = tokenize_gen(string)
     first_element = next(generator)
     
     if first_element in "[({":
         if first_element == "[":
-            if generator:
+            if is_generator:
                 return init_list_gen(generator)
             else:
                 init_func = init_list_gen
             
         elif first_element == "{":
-            if generator:
+            if is_generator:
                 return init_dict_gen(generator)
             else:
                 init_func = init_dict_gen
