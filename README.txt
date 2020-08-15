@@ -1,1 +1,2 @@
 Bitirmeden bırakacağımı biliyorum
+\\ \\ \n \\\\

@@ -5,85 +5,132 @@ import json
 """TODO
 init_dict
 \ geliştirilecek
+generator levels
     It also understands ``NaN``, ``Infinity``, and ``-Infinity`` as
     their corresponding ``float`` values, which is outside the JSON spec.
 """
 
-def tokenize_gen(string, tokenizers="[{(\\,\"')}]"):
+
+def read_file_gen(path, encoding="utf-8"):
+    #   Dosyanın sonuna gelmediğimiz 
+    # sürece sonraki elemanı okuyup yolla
+    char = True
+    with open(path, encoding=encoding) as f:
+        while char:
+            yield (char := f.read(1))
+
+
+def read_file(path, encoding="utf-8"):
+    # Hepsini oku yolla
+    with open(path, encoding=encoding) as f:
+        return f.read()
+    # neden var bilmiyorum
+
+
+def tokenize_(string, tokenizers="[{(\\,\"')}]"):
+    # Sonraki bölüme vermek için böyle bir değişken var
+    # Direkt olarak ayrı bir fonksiyon halinde bıraksaydım daha hoş olurdu
+    # Haha yaptım
+    # ve artık o değişken yok :-(
+    
+    # Son token indexi 
     last_index = 0
-    active_str = None
-    is_string = False
-    is_prv_bs = False
+    #   Ki bir daha token bulduğumzda eskisi 
+    # ile yeni bulunan arasını da yollayabilelim
+    
     for index, char in enumerate(string):
-        new_part = []
         if char in tokenizers:
+            # "" önlemek için
             if index > (last_index + 1):
-                new_part.append("".join(string[(last_index + 1):index]))
-            new_part.append(char)
+                # son token ile şu nki token arasını yolla
+                yield "".join(string[(last_index + 1):index])
+            # tokenın kendinsini yolla
+            yield char
+            # son token şimdiki token
             last_index = index
 
         elif index == len(string) - 1:
-            new_part.append("".join(string[(last_index + 1):]))
+            # Sondan bir önceki karakter token değilse 
+            yield "".join(string[(last_index + 1):])
+            # Son tokendan sonuna kadar yolla
+        
 
-        for part in new_part:
-            if part in ["'", '"', "\\"]: 
-                if part in ["'", '"']:
-                    if is_string:
-                        is_string = False if is_string == part else is_string
-                        if not is_string:
-                            active_str.append(part)
-                            yield "".join(active_str)
-                            active_str = None
-                            is_string = False
-                        else:
-                            active_str.append(part)
-                    else:
-                        is_string = part
-                        active_str = [part]
-                elif part == "\\":
-                    if is_string:
-                        if (is_prv_bs := bool(1 - is_prv_bs)):
-                            active_str.append("\\")
-                    else:
-                        raise Exception("Syntax Error (\\)")
-            else:
+def tokenize_gen(reader_gen, tokenizers="[{(\\,\"')}]"):
+    #   eğer tırnak işaret ile string değer 
+    # girilmeye başlanmışsa değerlerin kaydolacağı liste
+    active_str = None
+    # Hangi tırnak işaretiyle başladığımız
+    is_string = False
+    # Önceki elemanın \ olup olmadığı
+    is_prv_bs = False
+    
+    for part in tokenize_(reader_gen, tokenizers):
+        if part in ["'", '"', "\\"]: 
+            # Parça tırnak işaretiyse
+            if part in ["'", '"']:
+                # String içine zaten girdiysek
                 if is_string:
-                    active_str.append(part)
-                else:
-                    yield part
+                    #       Eğer stringi açmak için kullanılan tırnak 
+                    #   işaretiyle şu an gelen tırnak işareti 
+                    # aynıysa string kapatılıyor (is_string False oluyor)
+                    is_string = False if is_string == part else is_string
+                    
+                    # Eğer string şimdi kapatıldıysa
+                    if not is_string:
+                        # Son parçayı aktif stringe ekle
+                        active_str.append(part)
+                        
+                        # Aktif stringi birleştirip yolla
+                        yield "".join(active_str)
+                        # Bu noktada neden aktif stringi listede topladığımı sorgulamaya başlıyorum
+                        
+                        # Sıfırla
+                        active_str = None
+                        is_string = False
 
-
-def loads(string, is_generator="all"):
-    generator = tokenize_gen(string)
-    first_element = next(generator)
-    
-    if first_element in "[({":
-        if first_element == "[":
-            if is_generator:
-                return init_list_gen(generator)
-            else:
-                init_func = init_list_gen
-            
-        elif first_element == "{":
-            if is_generator:
-                return init_dict_gen(generator)
-            else:
-                init_func = init_dict_gen
-        
-        elif first_element == "(":
-            return tuple(gen_to_list((i for i in init_list_gen(generator, tuple_mode=1))))
-        
-        return gen_to_list((i for i in init_func(generator)))
-            
-    else:
-        return first_element
-    
-            
-def init_tuple_gen(t_list):
-    for i in init_list_gen(t_list, tuple_mode=True):
-        yield i
-    
+                    # Hala stringin içindeysek
+                    else:
+                        # Parçayı ekle
+                        active_str.append(part)
+                        # Diğer tırnak işareti olması ve \ için
                 
+                # String içine daha yeni giriyorsak
+                else:
+                    # Hangi tırnakla girdiğimizi belirt
+                    is_string = part
+                    # Tırnağı aktif stringe ekle
+                    active_str = [part]
+                    
+                    #   aktif stringe tırnak ekleme sebebim ileride 
+                    # string ve int değerlerin ayrımını kolaylaştırmak
+                    
+                    #   İlk başta .tags ve .data şeylerine sahip 
+                    # olan bir class açmıştım ama şu an gereksiz görüyorum
+            
+            elif part == "\\":
+                # Lanet olası şey
+                if is_string:
+                    # Önceki bu değilse anlam kazansın
+                    # Buysa anlamını yitirisin (\\ girip \ yazması için filan) 
+                    is_prv_bs = bool(1 - is_prv_bs)
+                    active_str.append("\\")
+
+                    # oysa ki seni kullanmayı çok isterdim
+                    # if (is_prv_bs := bool(1 - is_prv_bs)):
+                    #     active_str.append("\\")
+                else:
+                    # String dışında kullanmak yasak
+                    raise Exception("Syntax Error (\\)")
+                    # Karakter karakter okuduğum için satır sonlarında (\n) umarım sıkıntı çıkarmaz
+        
+        else:
+            # Stringse ekle değilse yolla
+            if is_string:
+                active_str.append(part)
+            else:
+                yield part
+
+
 def init_list_gen(t_gen, tuple_mode=False):
     # son kullanılan index
     lui = -1
@@ -91,36 +138,52 @@ def init_list_gen(t_gen, tuple_mode=False):
     # list cursorı
     ci = 0
     
-    skip = 0
-    next_closing = 0
+    # Parantez kapatma değişkeni
     closing = ")" if tuple_mode else "]"
+    # İstemediğimiz parantez kapatma şekilleri
     err_closing = "".join([i for i in "]})" if i != closing])
     
     for part in t_gen:
+        # string içinde olmayan boşluk gelirse geç
         if part.strip() == "":
+            # Bunu üsteki fonksiyonlarda çözmem daha hoş olurdu
             continue
         
         # Eğer tokensa
         if part in "[{(\\,\"')}]":
+            # Buralar çok değişti en son yazmak en mantıklısıymış
             # Hangi tür olduğuna göre fonksiyon çağır
             if part in "[{(":
-                if part == "[":
-                    new_gen = (i for i in init_list_gen(t_gen))
-
-                elif part == "{":
-                    new_gen = (i for i in init_dict_(t_gen))
-
-                elif part == "(":
-                    new_gen = tuple(gen_to_list((i for i in init_list_gen(t_gen, tuple_mode=1))))
-
-                else:
-                    raise Exception("Unknown Error (Code 00-1)")
-                
                 if (ci-1) == lui:
-                    # Buralar çok değişti en son yazmak en mantıklısıymış
-                    yield new_gen
+                    if part == "[":
+                        # Generator recursion
+                        yield (i for i in init_list_gen(t_gen))
+                        # Burda ufak bir hata yakaladım
+                        
+                        #                           Fonksiyonun normal kullanımı halinde herhangi bir sıkıntı 
+                        #                       oluşmamasına rağmen eğer döndürdüğü generator objesini tamamen 
+                        #                   tüketmeden daha fazla değer almaya çalışırsanız imleç, döndürdüğüm    
+                        #               generatorun gitmesi gereken yerlerden gidiyor, bu da 1 milyon hataya 
+                        #           sebep oluyor. Çözüm olarak generator levelleri koymak istiyorum örnek 
+                        #       olarak generator = 1 olduğunda sadece en üst katmandaki değerler generator 
+                        #   olarak döndürülecek. Yorum satırlarına kodlardan daha çok zaman harcamak beni 
+                        # çok rahatsız ediyor. Bu cümleyle bu güzel yorumu daha da mükemmelleştiriyorum.
+                        
+                    elif part == "{":
+                        yield (i for i in init_dict_(t_gen))
+
+                    elif part == "(":
+                        # Tuple objeler generator olarak işlenmiyor 
+                        yield tuple(gen_to_list((i for i in init_list_gen(t_gen, tuple_mode=1))))
+                        #   tuple.append olmadığı için yapmama rağmen generator olan ve 
+                        # olmaya objelere daha iyi hakim olmamızı sağlayacak gibi görünüyor
+                    else:
+                        raise Exception("Unknown Error (Code 00-1)")
                     
-                    #   ve içinde bulunduğumuz listenin
+                    # last used index -> lui
+                    # current index -> ci
+                    
+                    #   İçinde bulunduğumuz listenin
                     # kullandığımız indexinin kullanılmış olduğunu belirtiyoruz
                     lui=ci
                     # ki virgül koymadan yeni bir indexe atlamasın
@@ -129,15 +192,15 @@ def init_list_gen(t_gen, tuple_mode=False):
                 else:
                     # virgül koymadan yeni eleman eklenemiyor
                     raise Exception("Syntax Error (,) (Code 004)")
-                # Yukarda dediğim atlama
-                # Diğerleri de aynı işte
-                # index += j
-            
+                
             elif part == closing:
+                # kapatıyorsan kapat
                 break
                             
             elif part == ",":
+                # Current indexi arttır ki 
                 ci += 1
+                # son kullanılmış olanla aynı olmasın
 
             elif part in err_closing:
                 # Yanlış kapatma 
@@ -173,24 +236,50 @@ def init_list_gen(t_gen, tuple_mode=False):
                 # Yukarda demiştim zaten işte
                 # Kullanıldığını belirtme filan
             else:
-                # lui ile ci farklı olmazsa virgül koyulmadıüını anlıyor
+                # lui ile ci farklı olmazsa virgül koyulmadığını anlıyor
                 raise Exception("Syntax Error (,) (Code 004)")
-        
+
 
 def init_dict(t_list):
     # Muhtemelen bunu yazamayacağım
     raise NotImplementedError
 
 
-#   ilk baştaki mal tokenizing algoritmamda sorting 
-# metodunu değiştirmenin ne kadar etkileyecğini görmek içindi
-def timer_(func):
-    # Güzel özellik 
-    def wrapper():
-        start = time.time()
-        func()
-        print(time.time() - start)
-    return wrapper
+def load_(generator, is_generator="all"):
+    # generatorın türü farklı olabileceği için küçük bir şeyler
+    first_element = next(generator) if isinstance(generator, types.GeneratorType) else generator[0]
+         
+    if first_element in "[({":
+        if first_element == "[":
+            if is_generator:
+                return init_list_gen(generator)
+            else:
+                init_func = init_list_gen
+            
+        elif first_element == "{":
+            if is_generator:
+                return init_dict_gen(generator)
+            else:
+                init_func = init_dict_gen
+        
+        elif first_element == "(":
+            return tuple(gen_to_list((i for i in init_list_gen(generator, tuple_mode=1))))
+        
+        return gen_to_list((i for i in init_func(generator)))
+            
+    else:
+        # Burda da biraz patlak veriyoruz
+        return first_element
+
+
+def load(path, is_generator="all", encoding="utf-8"):
+    generator = tokenize_gen(read_file_gen(path, encoding=encoding))
+    load_(generator, is_generator)
+    
+    
+def loads(string, is_generator="all"):
+    generator = tokenize_gen(string)
+    load_(generator, is_generator)
     
     
 def gen_to_list(gen):
@@ -215,19 +304,33 @@ def print_gen(gen, main=True):
                 print(i, end="")
                 
         print(", ", end="")
-        # time.sleep(0.5)
+        time.sleep(0.3)
     print("]" if not main else "]\n", end="")
+    
+
+def timer_(func):
+    #   ilk baştaki mal tokenizing algoritmamda sorting 
+    # metodunu değiştirmenin ne kadar etkileyecğini görmek içindi
+    def wrapper():
+        # Güzel özellik 
+        start = time.time()
+        func()
+        print(time.time() - start)
+    return wrapper
     
     
 @timer_
 def test():
-    # 0.016243457794189453
     # tester = "[['tuna((pro)'], 1234, [[], ((0)), None, 'None']]"
-    # tester = '("tunapro", (()), [[]], [(0, "[\\"]")])'
     # tester = "('tunapro1234', (()), (0, '[\\]'))"
     # tester = '"a"'
+    # tester = '("tunapro", (()), [[]], [(0, "[\\"]")])'
+
+    tester = '["tunapro", [[]], [[]], [[0, "[\\]"]]]'
     print(tester)
-    print_gen(json.loads(tester))
+    # print_gen(loads(tester))
+    for i in loads(tester):
+        print(str(i))
     
 
 if __name__ == "__main__":

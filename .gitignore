@@ -5,6 +5,7 @@
 /dist/
 /build/
 /vscode/
+/.vscode/
 /__pycache__/
 
 # Python egg metadata, regenerated from source files by setuptools.
