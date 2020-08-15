@@ -48,12 +48,17 @@ def tokenize_(string, tokenizers="[{(\\,\"')}]"):
             yield char
             # son token şimdiki token
             last_index = index
-
-        elif index == len(string) - 1:
-            # Sondan bir önceki karakter token değilse 
-            yield "".join(string[(last_index + 1):])
-            # Son tokendan sonuna kadar yolla
         
+        # Ben malım
+        # elif index == len(string) - 1:
+        #     # Sondan bir önceki karakter token değilse 
+        #     yield "".join(string[(last_index + 1):])
+        #     # Son tokendan sonuna kadar yolla
+        # generatorde sondan bir öncekini nası anlıcan
+        # Bunu yarın geliştiriyoruz sonra dict
+        
+        # between tarzı değişken yap
+
 
 def tokenize_gen(reader_gen, tokenizers="[{(\\,\"')}]"):
     #   eğer tırnak işaret ile string değer 
@@ -287,13 +292,13 @@ def load_(generator, is_generator="all"):
 def load(path, is_generator="all", encoding="utf-8"):
     # Bunu anlatmayacağım
     generator = tokenize_gen(read_file_gen(path, encoding=encoding))
-    load_(generator, is_generator)
+    return load_(generator, is_generator)
     
     
 def loads(string, is_generator="all"):
     # Bunu da
     generator = tokenize_gen(string)
-    load_(generator, is_generator)
+    return load_(generator, is_generator)
     
     
 def gen_to_list(gen):
@@ -307,20 +312,22 @@ def gen_to_list(gen):
     
 
 def print_gen(gen, main=True):
-    print("[", end="")
-    for i in gen:
-        if isinstance(i, types.GeneratorType):
-            print_gen(i, main=False)
-        else:
-            if type(i) == str:
-                print("\"" + i + "\"", end="")
+    if isinstance(gen, types.GeneratorType):
+        print("[", end="")
+        for i in gen:
+            if isinstance(i, types.GeneratorType):
+                print_gen(i, main=False)
             else:
-                print(i, end="")
-                
-        print(", ", end="")
-        time.sleep(0.3)
-    print("]" if not main else "]\n", end="")
-    
+                if type(i) == str:
+                    print("\"" + i + "\"", end="")
+                else:
+                    print(i, end="")
+                    
+            print(", ", end="")
+            time.sleep(0.3)
+        print("]" if not main else "]\n", end="")
+    else:
+        print(gen)
 
 def timer_(func):
     #   ilk baştaki mal tokenizing algoritmamda sorting 
@@ -337,14 +344,16 @@ def timer_(func):
 def test():
     # tester = "[['tuna((pro)'], 1234, [[], ((0)), None, 'None']]"
     # tester = "('tunapro1234', (()), (0, '[\\]'))"
-    # tester = '"a"'
     # tester = '("tunapro", (()), [[]], [(0, "[\\"]")])'
 
-    tester = '["tunapro", [[]], [[]], [[0, "[\\]"]]]'
+    # tester = '["tunapro", [[]], [[]], [[0, "[\\]"]]]'
+    tester = '1234'
     print(tester)
-    # print_gen(loads(tester))
-    for i in loads(tester):
-        print(str(i))
+    print(loads((i for i in tester), is_generator=False))
+    
+    # BÜYÜK HATA
+    # for i in loads(tester):
+    #     print(str(i))
     
 
 if __name__ == "__main__":
