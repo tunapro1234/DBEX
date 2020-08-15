@@ -169,6 +169,11 @@ def init_list_gen(t_gen, tuple_mode=False):
                         #   olarak döndürülecek. Yorum satırlarına kodlardan daha çok zaman harcamak beni 
                         # çok rahatsız ediyor. Bu cümleyle bu güzel yorumu daha da mükemmelleştiriyorum.
                         
+                        #       Bunu çözmek için döndüreceğimiz generatorlara farklı generator verebiliriz.
+                        #   Bu da sonraki parantezi bulmak ve imleci oraya atlatmak gibi eski fonksiyonları 
+                        # çıkarmam gerektiği anlamına geliyor. Muhtemelen bir ara hallederim ama önce dict.
+
+                        
                     elif part == "{":
                         yield (i for i in init_dict_(t_gen))
 
@@ -186,7 +191,7 @@ def init_list_gen(t_gen, tuple_mode=False):
                     #   İçinde bulunduğumuz listenin
                     # kullandığımız indexinin kullanılmış olduğunu belirtiyoruz
                     lui=ci
-                    # ki virgül koymadan yeni bir indexe atlamasın
+                    #   ki virgül koymadan yeni bir indexe atlamasın
                     # işte virgül koyunca ci yi bir arttırıyoruz sonra ikisi farklı oluyor filan
                     
                 else:
@@ -247,37 +252,46 @@ def init_dict(t_list):
 
 def load_(generator, is_generator="all"):
     # generatorın türü farklı olabileceği için küçük bir şeyler
-    first_element = next(generator) if isinstance(generator, types.GeneratorType) else generator[0]
-         
-    if first_element in "[({":
-        if first_element == "[":
-            if is_generator:
-                return init_list_gen(generator)
-            else:
-                init_func = init_list_gen
-            
-        elif first_element == "{":
-            if is_generator:
-                return init_dict_gen(generator)
-            else:
-                init_func = init_dict_gen
+    # first_element = next(generator) if isinstance(generator, types.GeneratorType) else generator[0]
+    # olmayacağını fark ettim
+    
+    first_element = next(generator)
+    
+    # İlk eleman işlememiz gereken bir şeyse
+    # Ne olduğuna göre işleyicileri çağır
+    if first_element == "[":
+        if is_generator:
+            # Generatorsa generatoru döndür
+            return init_list_gen(generator)
+        else:
+            # Değilse generatordan listeye dönüştürülecek elemanı döndür
+            return gen_to_list((i for i in init_list_gen(generator)))
+            init_func = init_list_gen
         
-        elif first_element == "(":
-            return tuple(gen_to_list((i for i in init_list_gen(generator, tuple_mode=1))))
-        
-        return gen_to_list((i for i in init_func(generator)))
+    elif first_element == "{":
+        if is_generator:
+            return init_dict_gen(generator)
+        else:
+            init_func = init_dict_gen
+    
+    elif first_element == "(":
+        # Tuple objeler için generator özelliği kapalı
+        return tuple(gen_to_list((i for i in init_list_gen(generator, tuple_mode=1))))
             
     else:
         # Burda da biraz patlak veriyoruz
+        # off bunu sabah yazmıştım nerde patlak verdiğimizi unuttum
         return first_element
 
 
 def load(path, is_generator="all", encoding="utf-8"):
+    # Bunu anlatmayacağım
     generator = tokenize_gen(read_file_gen(path, encoding=encoding))
     load_(generator, is_generator)
     
     
 def loads(string, is_generator="all"):
+    # Bunu da
     generator = tokenize_gen(string)
     load_(generator, is_generator)
     
