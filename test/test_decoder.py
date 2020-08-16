@@ -13,6 +13,15 @@ def gen_to_list(gen):
             final.append(i)
     return final
 
+def gen_to_dict(gen):
+    final = {}
+    for key, value in gen:
+        if isinstance(value, types.GeneratorType):
+            final[key] = gen_to_dict(value)
+        else:
+            final[key] = value
+    return final
+
 # tester = '["tunapro", [[]], [[]], [[0, "[\\]"]]]'
 def gen_func(gen=range(6)):
     for i in gen:
@@ -23,6 +32,17 @@ def gen_func(gen=range(6)):
 
 
 class TestDecoder(unittest.TestCase):
+    
+    def test_gen_to_dict(self):
+        tester_ = {"t":"tt"} 
+        gen = (i for i in tester_.items())
+        tester = {"a":"aa", "b":"bb", "gen":gen}
+        result = db.gen_to_dict((i for i in tester.items()))
+        
+        correct_result = {"a":"aa", "b":"bb", "gen":{"t":"tt"}}
+        
+        self.assertEqual(result, correct_result)
+    
     def test_tokenize(self):
         tester = '["tunapro", [[]], [[]], [[0, "[\\]"]]]'
         correct_result = ['[', '"', 'tunapro', '"', ',', ' ', '[', '[', ']', ']', ',', ' ', '[', '[', ']', ']', ',', ' ', '[', '[', '0', ',', ' ', '"', '[', '\\', ']', '"', ']', ']', ']']
@@ -43,6 +63,7 @@ class TestDecoder(unittest.TestCase):
     def test_loads(self):
         tester = '["tunapro", [[]], [[]], [[0, "[\\]"]]]'
         correct_result = ["tunapro", [[]], [[]], [[0, "[\\]"]]]
+        # correct_result = ['"tunapro"', [[]], [[]], [[0, '"[\\]"']]]
         
         result = db.loads(tester, is_generator=0)
         self.assertEqual(result, correct_result)
@@ -52,7 +73,7 @@ class TestDecoder(unittest.TestCase):
         
     def test_tokenize_gen(self):
         tester = '["tunapro", [[]], [[]], [[0, "[\\]"]]]'
-        correct_result = ['[', '"tunapro"', ',', ' ', '[', '[', ']', ']', ',', ' ', '[', '[', ']', ']', ',', ' ', '[', '[', '0', ',', ' ', '"[\\]"', ']', ']', ']']
+        correct_result = ['[', '"tunapro"', ',', '[', '[', ']', ']', ',', '[', '[', ']', ']', ',', '[', '[', '0', ',', '"[\\]"', ']', ']', ']']
         
         result = db.tokenize_gen(tester)
         if isinstance(result, types.GeneratorType):
@@ -71,3 +92,33 @@ class TestDecoder(unittest.TestCase):
         if not isinstance(db.read_file_gen(path), types.GeneratorType):
             # Haha
             self.assertEqual(False, True)
+    
+    
+    def test_convert_(self):
+        self.assertEqual(db.convert_("None"), None)
+        self.assertEqual(db.convert_("1234"), 1234)
+        self.assertEqual(db.convert_("True"), True)
+        self.assertEqual(db.convert_("False"), False)
+        self.assertEqual(db.convert_("12.34"), 12.34)
+        
+        self.assertEqual(db.convert_("null"), None)
+        self.assertEqual(db.convert_("true"), True)
+        self.assertEqual(db.convert_("false"), False)
+        
+        self.assertEqual(db.convert_('"Tunapro1234"'), "Tunapro1234")
+        self.assertEqual(db.convert_("'Tunapro1234'"), "Tunapro1234")
+        
+
+    def test_init_dict_gen(self):
+        tester = "{'a':'aa', 'b':'bb'}"
+        correct_result = {'a':'aa', 'b':'bb'}
+        result = db.init_dict_gen(lambda: (i for i in tester))
+        result = gen_to_dict(result)
+        self.assertEqual(result, correct_result)
+        
+        tester = "{'a':'aa', None:'none', \"True\":'true', 0.3:'0.3', True:'true'}"
+        correct_result = {'a':'aa', None:'none', "True":'true', 0.3:'0.3', True:'true'}
+        result = db.init_dict_gen(lambda: (i for i in tester))
+        result = gen_to_dict(result)
+        self.assertEqual(result, correct_result)
+        
