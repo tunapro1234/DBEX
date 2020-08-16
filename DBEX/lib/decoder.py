@@ -34,30 +34,42 @@ def tokenize_(string, tokenizers="[{(\\,\"')}]"):
     # ve artık o değişken yok :-(
     
     # Son token indexi 
-    last_index = 0
+    temp = ""
+    last_token_index = 0
+    ending_index = 0
     #   Ki bir daha token bulduğumzda eskisi 
     # ile yeni bulunan arasını da yollayabilelim
     
     for index, char in enumerate(string):
         if char in tokenizers:
             # "" önlemek için
-            if index > (last_index + 1):
-                # son token ile şu nki token arasını yolla
-                yield "".join(string[(last_index + 1):index])
+            if index > (last_token_index + 1):
+                # son token ile şu anki token arasını yolla
+                yield temp
+                # yield "".join(string[(last_token_index + 1):index])
             # tokenın kendinsini yolla
             yield char
+            temp = ""
             # son token şimdiki token
-            last_index = index
-        
+            last_token_index = index
+    
         # Ben malım
         # elif index == len(string) - 1:
-        #     # Sondan bir önceki karakter token değilse 
-        #     yield "".join(string[(last_index + 1):])
-        #     # Son tokendan sonuna kadar yolla
+            # Sondan bir önceki karakter token değilse 
+            # yield "".join(string[(last_index + 1):])
+            # Son tokendan sonuna kadar yolla
         # generatorde sondan bir öncekini nası anlıcan
         # Bunu yarın geliştiriyoruz sonra dict
         
         # between tarzı değişken yap
+        
+        else:
+            temp += char
+        
+        ending_index = index
+    
+    if ending_index != last_token_index:
+        yield temp
 
 
 def tokenize_gen(reader_gen, tokenizers="[{(\\,\"')}]"):
@@ -346,10 +358,10 @@ def test():
     # tester = "('tunapro1234', (()), (0, '[\\]'))"
     # tester = '("tunapro", (()), [[]], [(0, "[\\"]")])'
 
-    # tester = '["tunapro", [[]], [[]], [[0, "[\\]"]]]'
-    tester = '1234'
+    tester = '["tunapro", [[]], [[]], [[0, "[\\]"]]]'
+    # tester = '1234'
     print(tester)
-    print(loads((i for i in tester), is_generator=False))
+    print(loads(tester, is_generator=False))
     
     # BÜYÜK HATA
     # for i in loads(tester):
