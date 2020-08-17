@@ -146,13 +146,9 @@ def init_list_gen(t_gen_func, tuple_mode=False):
     # İstemediğimiz parantez kapatma şekilleri
     err_closing = "".join([i for i in "]})" if i != closing])
     
+    index = -1
     for part in t_gen:
-        # string içinde olmayan boşluk gelirse geç
-        # if part.strip() == "":
-            # Bunu üsteki fonksiyonlarda çözmem daha hoş olurdu
-            # continue
-            # çözdüm
-        
+        index += 1
         # Eğer tokensa
         if part in "[{(\\,:\"')}]":
             # Buralar çok değişti en son yazmak en mantıklısıymış
@@ -166,7 +162,7 @@ def init_list_gen(t_gen_func, tuple_mode=False):
                         def list_gen():
                             return (i for i in init_list_gen(new_gen_func))
                         yield list_gen
-                        index = next_closing+1
+                        index = next_closing
                         
                     elif part == "{":
                         next_closing = find_next_closing(t_gen, index, "{}")
@@ -175,14 +171,16 @@ def init_list_gen(t_gen_func, tuple_mode=False):
                         def dict_gen():
                             return (i for i in init_dict_gen(new_gen_func))                        
                         yield dict_gen
-                        index = next_closing+1
+                        index = next_closing
 
                     elif part == "(":
                         next_closing = find_next_closing(t_gen, index, "()")
                         new_gen_func = lambda: (j for i, j in enumerate(t_gen_func()) if index < i <= next_closing)
-                        tuple_gen = (i for i in init_list_gen(new_gen_func, tuple_mode=1))
-                        yield tuple(gen_to_list(tuple_gen))
-                        index = next_closing+1
+                        def tuple_gen(): 
+                            return (i for i in init_list_gen(new_gen_func, tuple_mode=1))
+                        
+                        yield tuple(gen_normalize(tuple_gen))
+                        index = next_closing
                         
                     else:
                         raise Exception("Unknown Error (Code 00-1)")
@@ -234,7 +232,7 @@ def init_dict_gen(t_gen_func):
     key_val = ()
     is_on_value = False
 
-    index = 0
+    index = -1
     for part in t_gen:
         index += 1
         # Eğer tokensa
@@ -243,7 +241,13 @@ def init_dict_gen(t_gen_func):
             if part in "[{(":
                 if len(key_val) == 0 and not is_on_value:
                     if part == "(":
-                        key_val = (tuple(gen_to_list((i for i in init_list_gen(t_gen, tuple_mode=1)))), )
+                        next_closing = find_next_closing(t_gen, index, "()")
+                        new_gen_func = lambda: (j for i, j in enumerate(t_gen_func()) if index < i <= next_closing)
+                        def tuple_gen():
+                            return (i for i in init_list_gen(new_gen_func, tuple_mode=1))
+                        key_val = (tuple(gen_normalize(tuple_gen)), )
+                        index = next_closing
+                        
                     else:
                         raise Exception("Syntax Error {} (Code 011)")
 
@@ -257,7 +261,7 @@ def init_dict_gen(t_gen_func):
                             return (i for i in init_list_gen(new_gen_func))
                         
                         yield (key_val := (key_val[0], list_gen))
-                        index = next_closing+1
+                        index = next_closing
                         
                     elif part == "{":
                         next_closing = find_next_closing(t_gen, index, "{}")
@@ -266,14 +270,16 @@ def init_dict_gen(t_gen_func):
                             return (i for i in init_dict_gen(new_gen_func))
                         
                         yield (key_val := (key_val[0], dict_gen))
-                        index = next_closing+1
+                        index = next_closing
 
                     elif part == "(":
                         next_closing = find_next_closing(t_gen, index, "()")
                         new_gen_func = lambda: (j for i, j in enumerate(t_gen_func()) if index < i <= next_closing)
-                        tuple_gen = (i for i in init_list_gen(new_gen_func, tuple_mode=1))
-                        yield (key_val := (key_val[0], tuple(gen_to_list(tuple_gen))))
-                        index = next_closing+1
+                        def tuple_gen():
+                            return (i for i in init_list_gen(new_gen_func, tuple_mode=1))
+                        
+                        yield (key_val := (key_val[0], tuple(gen_normalize(tuple_gen))))
+                        index = next_closing
                         
 
                     else:
@@ -358,11 +364,11 @@ def convert_(part):
         # Boolean
         return True if part == "True" else False
     else:
-        raise Exception("Syntax Error (Code 006)")
+        raise Exception(f"Syntax Error [{part}] is not defined.")
 
 
 def load_(generator_func, is_generator="all"):
-    generator_func2 = lambda: (j for i in enumerate(generator_func()) if i != 0)
+    generator_func2 = lambda: (j for i, j in enumerate(generator_func()) if i != 0)
     first_element = next(generator_func())
     
     # İlk eleman işlememiz gereken bir şeyse
@@ -401,7 +407,7 @@ def load_(generator_func, is_generator="all"):
 
 def load(path, is_generator="all", encoding="utf-8"):
     # Bunu anlatmayacağım
-    generator_func = tokenize_gen(read_file_gen(path, encoding=encoding))
+    generator_func = lambda: tokenize_gen(read_file_gen(path, encoding=encoding))
     return load_(generator_func, is_generator)
     
     
@@ -441,7 +447,7 @@ def gen_normalize(gen_func):
             else:
                 final[key] = value
 
-    elif gen_func.__name__ == "list_gen":
+    elif gen_func.__name__ in ["list_gen", "tuple_gen"]:
         final = []
         for value in gen:
             if callable(value):
@@ -484,26 +490,13 @@ def timer_(func):
     
 @timer_
 def test():
-    # tester = "[['tuna((pro)'], 1234, [[], ((0)), None, 'None']]"
-    # tester = "('tunapro1234', (()), (0, '[\\]'))"
-    # tester = '("tunapro", (()), [[]], [(0, "[\\"]")])'
-
-    # tester = '["tunapro", [[]], [[]], [[0, "[\\]"]]]'
-    # tester = '1234'
+    tester = [ "{", 
+                        "'gen'", ":", "{", "'b'", ":", "'bb'", "}", ",", 
+                        "'gen2'", ":", "{", "(", ")", ":", "{", "}", "}",
+                    "}" ]
     
-    tester = "{'a': {'b':'b'}, 'c':'c', 'd': {'e':'e'}}"
-    print(repr(tester)[1:-1]) # backslash yazdırma için repr
-    result = loads(tester)
-    print(gen_to_dict(result))
-    
-    path = "dbex/res/test.dbex"
-    
-    # print(read_file(path))
-    # print_gen(load(path))
-    
-    # BÜYÜK HATA
-    # for i in loads(tester):
-    #     print(str(i))
+    print(repr(tester)[1:-1]) 
+    print(loads(tester, is_generator=0))
     
 
 if __name__ == "__main__":
