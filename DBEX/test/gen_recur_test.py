@@ -1,4 +1,5 @@
 import types
+
 def find_next_closing(arr, index, type="[]"):
     cot = 1
     for i in range(index, len(arr)):        

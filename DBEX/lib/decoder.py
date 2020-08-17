@@ -3,7 +3,9 @@ import time
 import json
 
 """TODO
-init_dict
+init_dict_gen recur
+init_list_gen ve tuple mode test fonksiyonları
+
 \ geliştirilecek
 generator levels
     It also understands ``NaN``, ``Infinity``, and ``-Infinity`` as
@@ -131,7 +133,8 @@ def tokenize_gen(reader_gen, tokenizers="[{(\\,:\"')}]"):
                 yield part
 
 
-def init_list_gen(t_gen, tuple_mode=False):
+def init_list_gen(t_gen_func, tuple_mode=False):
+    t_gen = t_gen_func()
     # son kullanılan index
     lui = -1
     
@@ -157,32 +160,30 @@ def init_list_gen(t_gen, tuple_mode=False):
             if part in "[{(":
                 if (ci-1) == lui:
                     if part == "[":
-                        # Generator recursion
-                        yield (i for i in init_list_gen(t_gen))
-                        # Burda ufak bir hata yakaladım
+                        next_closing = find_next_closing(t_gen, index, "[]")
+                        new_gen_func = lambda: (j for i, j in enumerate(t_gen_func()) if index < i <= next_closing)
                         
-                        #                           Fonksiyonun normal kullanımı halinde herhangi bir sıkıntı 
-                        #                       oluşmamasına rağmen eğer döndürdüğü generator objesini tamamen 
-                        #                   tüketmeden daha fazla değer almaya çalışırsanız imleç, döndürdüğüm    
-                        #               generatorun gitmesi gereken yerlerden gidiyor, bu da 1 milyon hataya 
-                        #           sebep oluyor. Çözüm olarak generator levelleri koymak istiyorum örnek 
-                        #       olarak generator = 1 olduğunda sadece en üst katmandaki değerler generator 
-                        #   olarak döndürülecek. Yorum satırlarına kodlardan daha çok zaman harcamak beni 
-                        # çok rahatsız ediyor. Bu cümleyle bu güzel yorumu daha da mükemmelleştiriyorum.
-                        
-                        #       Bunu çözmek için döndüreceğimiz generatorlara farklı generator verebiliriz.
-                        #   Bu da sonraki parantezi bulmak ve imleci oraya atlatmak gibi eski fonksiyonları 
-                        # çıkarmam gerektiği anlamına geliyor. Muhtemelen bir ara hallederim ama önce dict.
-
+                        def list_gen():
+                            return (i for i in init_list_gen(new_gen_func))
+                        yield list_gen
+                        index = next_closing+1
                         
                     elif part == "{":
-                        yield (i for i in init_dict_gen(t_gen))
+                        next_closing = find_next_closing(t_gen, index, "{}")
+                        new_gen_func = lambda: (j for i, j in enumerate(t_gen_func()) if index < i <= next_closing)
+
+                        def dict_gen():
+                            return (i for i in init_dict_gen(new_gen_func))                        
+                        yield dict_gen
+                        index = next_closing+1
 
                     elif part == "(":
-                        # Tuple objeler generator olarak işlenmiyor 
-                        yield tuple(gen_to_list((i for i in init_list_gen(t_gen, tuple_mode=1))))
-                        #   tuple.append olmadığı için yapmama rağmen generator olan ve 
-                        # olmaya objelere daha iyi hakim olmamızı sağlayacak gibi görünüyor
+                        next_closing = find_next_closing(t_gen, index, "()")
+                        new_gen_func = lambda: (j for i, j in enumerate(t_gen_func()) if index < i <= next_closing)
+                        tuple_gen = (i for i in init_list_gen(new_gen_func, tuple_mode=1))
+                        yield tuple(gen_to_list(tuple_gen))
+                        index = next_closing+1
+                        
                     else:
                         raise Exception("Unknown Error (Code 00-1)")
                     
@@ -232,41 +233,55 @@ def init_dict_gen(t_gen_func):
     t_gen = t_gen_func()
     key_val = ()
     is_on_value = False
-    lui = -1
-    ci = 0
 
+    index = 0
     for part in t_gen:
+        index += 1
         # Eğer tokensa
         if part in "[{(\\,:\"')}]":
             # Hangi tür olduğuna göre fonksiyon çağır
             if part in "[{(":
                 if len(key_val) == 0 and not is_on_value:
-                    raise Exception("Syntax Error {} (Code 011)")
                     if part == "(":
-                        key_val = (tuple(gen_to_list((i for i in init_list_gen(t_gen, tuple_mode=1)))))
+                        key_val = (tuple(gen_to_list((i for i in init_list_gen(t_gen, tuple_mode=1)))), )
+                    else:
+                        raise Exception("Syntax Error {} (Code 011)")
 
-                elif (ci-1) == lui: # and not len(key_val) == 2
+                elif len(key_val) == 1 and is_on_value:
+                # elif (ci-1) == lui: # and not len(key_val) == 2
                     if part == "[":
                         # Generator recursion
-                        new_gen_func = lambda: (j for i, j in enumerate(t_gen_func()) if 0 < i < 10000)
-                        yield (key_val := (key_val[0], (i for i in init_list_gen(new_gen_func))))
+                        next_closing = find_next_closing(t_gen, index, "[]")
+                        new_gen_func = lambda: (j for i, j in enumerate(t_gen_func()) if index < i <= next_closing)
+                        def list_gen():
+                            return (i for i in init_list_gen(new_gen_func))
+                        
+                        yield (key_val := (key_val[0], list_gen))
+                        index = next_closing+1
                         
                     elif part == "{":
-                        new_gen_func = lambda: (j for i, j in enumerate(t_gen_func()) if 0 < i < 10000)
-                        yield (key_val := (key_val[0], (i for i in init_dict_gen(new_gen_func))))
+                        next_closing = find_next_closing(t_gen, index, "{}")
+                        new_gen_func = lambda: (j for i, j in enumerate(t_gen_func()) if index < i <= next_closing)
+                        def dict_gen():
+                            return (i for i in init_dict_gen(new_gen_func))
+                        
+                        yield (key_val := (key_val[0], dict_gen))
+                        index = next_closing+1
 
                     elif part == "(":
-                        #   Direkt olarak kullandığım generatoru verdim çünkü 
-                        # şu anki fonksiyondan sonra kullanma gibi bir şansı yok
-                        yield (key_val := (key_val[0], tuple(gen_to_list((i for i in init_list_gen(t_gen, tuple_mode=1))))))
-                    
+                        next_closing = find_next_closing(t_gen, index, "()")
+                        new_gen_func = lambda: (j for i, j in enumerate(t_gen_func()) if index < i <= next_closing)
+                        tuple_gen = (i for i in init_list_gen(new_gen_func, tuple_mode=1))
+                        yield (key_val := (key_val[0], tuple(gen_to_list(tuple_gen))))
+                        index = next_closing+1
+                        
+
                     else:
                         raise Exception("Unknown Error (Code 00-1)")
-                    lui=ci
                     
-                else:
-                    # virgül koymadan yeni eleman eklenemiyor
-                    raise Exception("Syntax Error (,) (Code 004)")
+                # else:
+                #     # virgül koymadan yeni eleman eklenemiyor
+                #     raise Exception("Syntax Error (,) (Code 004)")
                 
             elif part == "}":
                 break
@@ -274,9 +289,10 @@ def init_dict_gen(t_gen_func):
             elif part == ",":
                 key_val = ()
                 is_on_value = False
-                ci += 1
             
             elif part == ":":
+                if is_on_value:
+                    raise Exception("Syntax Error (::) (Code 010)")
                 is_on_value = True
 
             elif part in ")]":
@@ -285,44 +301,90 @@ def init_dict_gen(t_gen_func):
                 
         # Aktif parça token değilse
         else:
-            if (ci-1) == lui:
-                # Key belirleniyorsa
-                if not is_on_value:
-                    key_val = (part)
-                # Key girilmişse
-                elif len(key_val) > 0:
-                    key_val = (key_val[0], part)
-                
-                else:
-                    raise Exception("Syntax Error (::) (Code 010)")
-                    
-                lui=ci
+            part = convert_(part)
+            # Key belirleniyorsa
+            if not is_on_value:
+                key_val = (part, )
+
+            # Key girilmişse
+            elif len(key_val) == 1:
+                yield (key_val := (key_val[0], part))
+
             else:
-                raise Exception("Syntax Error (,) (Code 004)")
+                raise Exception("Syntax Error (::) (Code 010)")
 
 
-def load_(generator, is_generator="all"):
-    # generatorın türü farklı olabileceği için küçük bir şeyler
-    # first_element = next(generator) if isinstance(generator, types.GeneratorType) else generator[0]
-    # olmayacağını fark ettim
-    first_element = next(generator)
+def find_next_closing(gen, index, type="[]"):
+    cot = 1
+    if len(type) != 2:
+        raise Exception("Benim hatam...")
+    
+    while cot != 0:
+        j, index = next(gen), index+1
+        if j == type[0]:
+            cot += 1
+        elif j == type[1]:
+            cot -= 1
+    
+    return index
+
+
+def convert_(part):
+    # Şimdilik JSON uyumlu olsun hadi
+    json = True
+    part = part.strip()
+    if json:
+        if part == "null":
+            # None
+            return None
+        
+        elif part in ["true", "false"]:
+            # Boolean
+            return True if part == "true" else False
+
+    if part in ["None"]:
+        # None
+        return None
+    elif part[0] in "\"'" and part[-1] in "\"'" and part[0] == part[-1]:
+        # String
+        return part[1:-1]
+    elif part.isdigit():
+        # Integer
+        return int(part)
+    elif part.replace('.', '', 1).isdigit() or part in ["Infinity", "-Infinity", "NaN"]:
+        # Float
+        return float(part)
+    elif part in ["True", "False"]:
+        # Boolean
+        return True if part == "True" else False
+    else:
+        raise Exception("Syntax Error (Code 006)")
+
+
+def load_(generator_func, is_generator="all"):
+    generator_func2 = lambda: (j for i in enumerate(generator_func()) if i != 0)
+    first_element = next(generator_func())
     
     # İlk eleman işlememiz gereken bir şeyse
     # Ne olduğuna göre işleyicileri çağır
     if first_element == "[":
         if is_generator:
-            # Generatorsa generatoru döndür
-            return init_list_gen(generator)
+            return init_list_gen(generator_func2)
         else:
-            # Değilse generatordan listeye dönüştürülecek elemanı döndür
-            return gen_to_list((i for i in init_list_gen(generator)))
+            def list_gen():
+                return (i for i in init_list_gen(generator_func2))
+            return gen_normalize(list_gen)
         
     elif first_element == "{":
-        raise NotImplementedError
+        if is_generator:
+            return init_dict_gen(generator_func2)
+        else:
+            def dict_gen():
+                return (i for i in init_dict_gen(generator_func2))
+            return gen_normalize(dict_gen)
         
     elif first_element == "(":
-        # Tuple objeler için generator özelliği kapalı
-        return tuple(gen_to_list((i for i in init_list_gen(generator, tuple_mode=1))))
+        return tuple(gen_normalize((i for i in init_list_gen(generator, tuple_mode=1))))
             
     else:
         #   eğer direkt olarak sadece 1 değer 
@@ -337,28 +399,6 @@ def load_(generator, is_generator="all"):
         # part = str(first_element) + "".join(gen_next)
         
 
-def convert_(part):
-    # Şimdilik JSON uyumlu olsun hadi
-    part = part.strip()
-    if part in ["None", "null"]:
-        # None
-        return None
-    elif part[0] in "\"'" and part[-1] in "\"'" and part[0] == part[-1]:
-        # String
-        return part[1:-1]
-    elif part.isdigit():
-        # Integer
-        return int(part)
-    elif part.replace('.', '', 1).isdigit():
-        # Float
-        return float(part)
-    elif part in ["True", "true", "False", "false"]:
-        # Boolean
-        return True if part in ["True", "true"] else False
-    else:
-        raise Exception("Syntax Error (Code 006)")
-
-
 def load(path, is_generator="all", encoding="utf-8"):
     # Bunu anlatmayacağım
     generator_func = tokenize_gen(read_file_gen(path, encoding=encoding))
@@ -367,7 +407,7 @@ def load(path, is_generator="all", encoding="utf-8"):
     
 def loads(string, is_generator="all"):
     # Bunu da
-    generator_func = tokenize_gen(string)
+    generator_func = lambda: tokenize_gen(string)
     return load_(generator_func, is_generator)
     
     
@@ -390,6 +430,27 @@ def gen_to_dict(gen):
             final[key] = value
     return final
 
+
+def gen_normalize(gen_func):
+    gen = gen_func()
+    if gen_func.__name__ == "dict_gen":
+        final = {}
+        for key, value in gen:
+            if callable(value):
+                final[key] = gen_normalize(value)
+            else:
+                final[key] = value
+
+    elif gen_func.__name__ == "list_gen":
+        final = []
+        for value in gen:
+            if callable(value):
+                final.append(gen_normalize(value))
+            else:
+                final.append(value)
+    
+    return final
+        
     
 def print_gen(gen, main=True):
     if isinstance(gen, types.GeneratorType):
@@ -427,11 +488,13 @@ def test():
     # tester = "('tunapro1234', (()), (0, '[\\]'))"
     # tester = '("tunapro", (()), [[]], [(0, "[\\"]")])'
 
-    tester = '["tunapro", [[]], [[]], [[0, "[\\]"]]]'
+    # tester = '["tunapro", [[]], [[]], [[0, "[\\]"]]]'
     # tester = '1234'
     
-    print(tester)
-    print(loads(tester, is_generator=False))
+    tester = "{'a': {'b':'b'}, 'c':'c', 'd': {'e':'e'}}"
+    print(repr(tester)[1:-1]) # backslash yazdırma için repr
+    result = loads(tester)
+    print(gen_to_dict(result))
     
     path = "dbex/res/test.dbex"
     

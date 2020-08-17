@@ -60,10 +60,31 @@ class TestDecoder(unittest.TestCase):
         correct_result = gen_to_list(gen_func())
         self.assertEqual(result, correct_result)
 
+
+    def test_json_comp(self):
+        import json
+        tester = '[true, false, null, Infinity, -Infinity, NaN]'
+        
+        result = db.loads(tester, is_generator=0)
+        correct_result = json.loads(tester)
+        
+        self.assertEqual(result, correct_result)
+        
+
     def test_loads(self):
-        tester = '["tunapro", [[]], [[]], [[0, "[\\]"]]]'
-        correct_result = ["tunapro", [[]], [[]], [[0, "[\\]"]]]
+        tester = '["tunapro", (()), [[]], [[0, "[\\]"]]]'
+        correct_result = ["tunapro", ((), ), [[]], [[0, "[\\]"]]]
         # correct_result = ['"tunapro"', [[]], [[]], [[0, '"[\\]"']]]
+        
+        result = db.loads(tester, is_generator=0)
+        self.assertEqual(result, correct_result)
+
+        result = db.loads((i for i in tester), is_generator=0)
+        self.assertEqual(result, correct_result)
+        
+    def test_loads_adv(self):
+        tester = "['tunapro', (()), (([[{{}}]])), [[0, '[\\]'']], None, inf, -inf, NaN]"
+        correct_result = ["tunapro", [[]], [[]], [[0, "[\\]"]], None, float("inf"), float("-inf"), float("NaN")]
         
         result = db.loads(tester, is_generator=0)
         self.assertEqual(result, correct_result)
@@ -110,15 +131,57 @@ class TestDecoder(unittest.TestCase):
         
 
     def test_init_dict_gen(self):
-        tester = "{'a':'aa', 'b':'bb'}"
-        correct_result = {'a':'aa', 'b':'bb'}
-        result = db.init_dict_gen(lambda: (i for i in tester))
+        with self.assertRaises(Exception):
+            # ::
+            tester = [ "{", 
+                            "'a'", ":", "'aa'", ":", "'aa'", ",",
+                            "'b'", ":", "'bb'",
+                        "}" ]
+            
+            result = db.init_dict_gen(lambda: (i for i in tester[1:]))
+            result = gen_to_dict(result)
+        ###
+        with self.assertRaises(Exception):
+            # virgülsüz
+            tester = [ "{", 
+                            "'a'", ":", "'aa'",
+                            "'b'", ":", "'bb'",
+                        "}" ]
+            
+            result = db.init_dict_gen(lambda: (i for i in tester[1:]))
+            result = gen_to_dict(result)
+        ###
+
+        tester = [ "{", 
+                        "'a'", ":", "'aa'", ",", 
+                        "None", ":", "'none'", ",", 
+                        "\"True\"", ":", "'true'", ",", 
+                        "0.3", ":", "'0.3'", ",", 
+                        "True", ":", "'true'", ",", 
+                        "(", ")", ":", "False", # YARIN BURAYA Bİ GÖZ AT
+                    "}" ]
+        
+        correct_result = {'a':'aa', None:'none', "True":'true', 0.3:'0.3', True:'true', ():False}
+        result = db.init_dict_gen(lambda: (i for i in tester[1:]))
         result = gen_to_dict(result)
         self.assertEqual(result, correct_result)
         
-        tester = "{'a':'aa', None:'none', \"True\":'true', 0.3:'0.3', True:'true'}"
-        correct_result = {'a':'aa', None:'none', "True":'true', 0.3:'0.3', True:'true'}
-        result = db.init_dict_gen(lambda: (i for i in tester))
+
+    def test_init_dict_gen_recur(self):
+        tester = [ "{", 
+                        "'gen'", ":", "{", "{", "'b'", ":", "'bb'", "}", "}", ","
+                        "'gen2'", ":", "{", "(", ")", ":", "{", "}", "}",
+                    "}" ]
+        
+        correct_result = {'a':'aa', None:'none', "True":'true', 0.3:'0.3', True:'true', "gen":{"b":"bb"}}
+        result = db.init_dict_gen(lambda: (i for i in tester[1:]))
         result = gen_to_dict(result)
+        self.assertEqual(result, correct_result)
+        
+        
+    def test_find_next_closing(self):
+        tester = "([{()}])"
+        result = db.find_next_closing(tester, type="()")
+        # correct_result = 
         self.assertEqual(result, correct_result)
         
