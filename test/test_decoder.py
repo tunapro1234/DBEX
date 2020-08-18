@@ -81,15 +81,18 @@ class TestDecoder(unittest.TestCase):
         correct_result = gen_to_list(gen_func())
         self.assertEqual(result, correct_result)
 
-    # Çok hata çıkarıyor
-    # def test_json_comp(self):
-    #     import json
-    #     tester = '[true, false, null, Infinity, -Infinity, NaN]'
+    def test_json_comp(self):
+        import json
+        tester = '[true, false, null, Infinity, -Infinity]'
         
-    #     result = db.loads(tester, is_generator=0)
-    #     correct_result = json.loads(tester)
+        result = db.loads(tester, is_generator=0)
+        correct_result = json.loads(tester)
         
-    #     self.assertEqual(result, correct_result)
+        self.assertEqual(result, correct_result)
+        
+    def test_NaN(self):        
+        result = db.loads("NaN", is_generator=0)
+        self.assertNotEqual(result, result)
         
 
     def test_loads(self):
@@ -100,17 +103,25 @@ class TestDecoder(unittest.TestCase):
         result = db.loads(tester, is_generator=0)
         self.assertEqual(result, correct_result)
 
-        # result = db.loads((i for i in tester), is_generator=0)
-        # self.assertEqual(result, correct_result)
+
+    # def test_loader(self):
+    #     tester = '[', '"tunapro"', ',', '(())', ',', '[[]]', ',', '[[0, "[\\]"]]', ']'
+    #     correct_result = ["tunapro", ((), ), [[]], [[0, "[\\]"]]]
+    #     # correct_result = ['"tunapro"', [[]], [[]], [[0, '"[\\]"']]]
         
-    def test_loads_adv(self):
+    #     result = db.loads(tester, is_generator=0)
+    #     self.assertEqual(result, correct_result)
+
+
+    def test_load(self):
         tester = "['tunapro', (()), [[]], [[0, '[\\]']], None]"
         correct_result = ["tunapro", ((),), [[]], [[0, "[\\]"]], None]
         
-        # result = db.loads(tester, is_generator=0)
-        # self.assertEqual(result, correct_result)
-
-        result = db.loads((i for i in tester), is_generator=0)
+        path = "dbex/res/test.dbex"
+        with open(path, "w+") as file:
+            file.write(tester)
+        
+        result = db.load(path, is_generator=0)
         self.assertEqual(result, correct_result)
         
     def test_tokenize_gen(self):

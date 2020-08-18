@@ -3,13 +3,10 @@ import time
 import json
 
 """TODO
-init_dict_gen recur
-init_list_gen ve tuple mode test fonksiyonları
-
+NaN hatası var
+hata düzenlemeleri
 \ geliştirilecek
 generator levels
-    It also understands ``NaN``, ``Infinity``, and ``-Infinity`` as
-    their corresponding ``float`` values, which is outside the JSON spec.
 """
 
 
@@ -369,7 +366,8 @@ def convert_(part):
 
 def load_(generator_func, is_generator="all"):
     generator_func2 = lambda: (j for i, j in enumerate(generator_func()) if i != 0)
-    first_element = next(generator_func())
+    generator = generator_func()
+    first_element = next(generator)
     
     # İlk eleman işlememiz gereken bir şeyse
     # Ne olduğuna göre işleyicileri çağır
@@ -490,11 +488,10 @@ def timer_(func):
     
 @timer_
 def test():
-    tester = [ "{", 
-                        "'gen'", ":", "{", "'b'", ":", "'bb'", "}", ",", 
-                        "'gen2'", ":", "{", "(", ")", ":", "{", "}", "}",
-                    "}" ]
-    
+    # tester = [ "{", 
+    #                     "'gen'", ":", "{", "'b'", ":", "'bb'", "}", ",", 
+    #                     "'gen2'", ":", "{", "(", ")", ":", "{", "}", "}",
+    #                 "}" ]
     print(repr(tester)[1:-1]) 
     print(loads(tester, is_generator=0))
     
