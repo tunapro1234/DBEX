@@ -2,8 +2,8 @@ def dump_gen_(obj, max_gen_lvl=1, gen_lvl=1, indent="", seperators=(", ", ": "))
     if type(seperators) != tuple:
         raise Exception("Seperator error")
     
-    parser1 = seperators[0]
-    parser2 = seperators[1].rstrip() if indent else seperators[1]
+    parser1 = seperators[1]
+    parser2 = seperators[0].rstrip() if indent else seperators[0]
     
     if type(obj) in [list, tuple]:
         first = True
@@ -80,15 +80,15 @@ def convert_(element):
     
 def dumps(obj, max_gen_lvl=0, gen_lvl=0, indent=0, seperators=(", ", ": "), sort_keys=0): 
     if sort_keys:
-        return sort_keys("".join([i for i in dump_gen(obj, *args, **kwargs)]))
+        return sort_keys("".join([i for i in dump_gen(obj, max_gen_lvl=0, gen_lvl=0, indent=0, seperators=(", ", ": "))]))
     else:
-        return "".join([i for i in dump_gen(obj, *args, **kwargs)])
+        return "".join([i for i in dump_gen(obj, max_gen_lvl=0, gen_lvl=0, indent=0, seperators=(", ", ": "))])
 
 def dump():
     pass
 
 if __name__ == "__main__":
     import json
-    obj = [{"a":"c", "b":"b", "a":"a"}, {"c":"c", "b":"b", "a":"a"}]
-    print(json.dumps(obj, sort_keys=1))
-    dumps()
+    tester = ["tunapro", [[]], [[]], [[0, "[\\]"]]]
+    dumps(tester)
+    correct_result = '["tunapro", [[]], [[]], [[0, "[\\]"]]]'
