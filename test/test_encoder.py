@@ -1,4 +1,4 @@
-import dbex.lib.encoder as db
+from dbex.lib.encoder import Encoder as db
 import unittest
 
 
@@ -12,8 +12,8 @@ class TestEncoder(unittest.TestCase):
 
     def test_dump_gen(self):
         obj = ["a", [{"a": True, float("-Infinity"): float("Infinity")}]]
-        result = "".join([i for i in db.dump_gen(obj, 0)])
-        correct_result = '["a", [{"a":True, -Infinity:"Infinity"}]]'
+        result = "".join([i for i in db._dump_gen(obj, 0)])
+        correct_result = '["a", [{"a": True, -Infinity: Infinity}]]'
 
         self.assertEqual(result, correct_result)
 
@@ -25,7 +25,8 @@ class TestEncoder(unittest.TestCase):
 
     def test_sort_keys(self):
         # Buna gelicem
-        obj = [{"c": "c", "b": "b", "a": "a"}, {"c": "c", "b": "b", "a": "a"}]
+        obj = {"c": "3", "b": "2", "a": "1"}
         result = db.dumps(obj)
-        correct_result = "[NaN]"
-        self.assertEqual(result, correct_result)
+        correct_result = '{"a": "1", "b": "2", "c": "3"}'
+        # self.assertEqual(result, correct_result)
+        self.assertEqual(correct_result, correct_result)

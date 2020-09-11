@@ -1,4 +1,4 @@
-import dbex.lib.decoder as db
+from dbex.lib.decoder import Decoder as db
 import unittest
 import types
 import time
@@ -58,7 +58,7 @@ class TestDecoder(unittest.TestCase):
         tester_ = {"t":"tt"} 
         gen = (i for i in tester_.items())
         tester = {"a":"aa", "b":"bb", "gen":gen}
-        result = db.gen_to_dict((i for i in tester.items()))
+        result = db._gen_to_dict((i for i in tester.items()))
         
         correct_result = {"a":"aa", "b":"bb", "gen":{"t":"tt"}}
         
@@ -68,16 +68,16 @@ class TestDecoder(unittest.TestCase):
         tester = '["tunapro", [[]], [[]], [[0, "[\\]"]]]'
         correct_result = ['[', '"', 'tunapro', '"', ',', ' ', '[', '[', ']', ']', ',', ' ', '[', '[', ']', ']', ',', ' ', '[', '[', '0', ',', ' ', '"', '[', '\\', ']', '"', ']', ']', ']']
         
-        result = gen_to_list(db.tokenize_(tester))
+        result = gen_to_list(db._tokenize(tester))
         self.assertEqual(result, correct_result)
 
-        result = gen_to_list(db.tokenize_((i for i in tester)))
+        result = gen_to_list(db._tokenize((i for i in tester)))
         self.assertEqual(result, correct_result)
 
     def test_gen_to_list(self):
         correct_result = [0, 1, 2, 3, 4, [0, 1]]
     
-        result = db.gen_to_list(gen_func())
+        result = db._gen_to_list(gen_func())
         correct_result = gen_to_list(gen_func())
         self.assertEqual(result, correct_result)
 
@@ -128,38 +128,38 @@ class TestDecoder(unittest.TestCase):
         tester = '["tunapro", [[]], [[]], [[0, "[\\]"]]]'
         correct_result = ['[', '"tunapro"', ',', '[', '[', ']', ']', ',', '[', '[', ']', ']', ',', '[', '[', '0', ',', '"[\\]"', ']', ']', ']']
         
-        result = db.tokenize_gen(tester)
+        result = db._tokenize_gen(tester)
         if isinstance(result, types.GeneratorType):
             result = gen_to_list(result)
 
         self.assertEqual(result, correct_result)
 
-    def test_read_file_gen(self):
+    def test_read_gen(self):
         path = "dbex/res/test.dbex"
         with open(path, "w+", encoding="utf-8") as file:
             correct_result = file.read()
         
-        result = "".join([i for i in db.read_file_gen(path)])
+        result = "".join([i for i in db._read_gen(path)])
         self.assertEqual(result, correct_result)
         
-        if not isinstance(db.read_file_gen(path), types.GeneratorType):
+        if not isinstance(db._read_gen(path), types.GeneratorType):
             # Haha
             self.assertEqual(False, True)
     
     
     def test_convert_(self):
-        self.assertEqual(db.convert_("None"), None)
-        self.assertEqual(db.convert_("1234"), 1234)
-        self.assertEqual(db.convert_("True"), True)
-        self.assertEqual(db.convert_("False"), False)
-        self.assertEqual(db.convert_("12.34"), 12.34)
+        self.assertEqual(db._convert("None"), None)
+        self.assertEqual(db._convert("1234"), 1234)
+        self.assertEqual(db._convert("True"), True)
+        self.assertEqual(db._convert("False"), False)
+        self.assertEqual(db._convert("12.34"), 12.34)
         
-        self.assertEqual(db.convert_("null"), None)
-        self.assertEqual(db.convert_("true"), True)
-        self.assertEqual(db.convert_("false"), False)
+        self.assertEqual(db._convert("null"), None)
+        self.assertEqual(db._convert("true"), True)
+        self.assertEqual(db._convert("false"), False)
         
-        self.assertEqual(db.convert_('"Tunapro1234"'), "Tunapro1234")
-        self.assertEqual(db.convert_("'Tunapro1234'"), "Tunapro1234")
+        self.assertEqual(db._convert('"Tunapro1234"'), "Tunapro1234")
+        self.assertEqual(db._convert("'Tunapro1234'"), "Tunapro1234")
         
 
     def test_init_dict_gen(self):
@@ -170,7 +170,7 @@ class TestDecoder(unittest.TestCase):
                             "'b'", ":", "'bb'",
                         "}" ]
             
-            result = db.init_dict_gen(lambda: (i for i in tester[1:]))
+            result = db._init_dict_gen(lambda: (i for i in tester[1:]))
             result = gen_normalize(result)
         ###
         with self.assertRaises(Exception):
@@ -180,7 +180,7 @@ class TestDecoder(unittest.TestCase):
                             "'b'", ":", "'bb'",
                         "}" ]
             
-            result = db.init_dict_gen(lambda: (i for i in tester[1:]))
+            result = db._init_dict_gen(lambda: (i for i in tester[1:]))
             result = gen_normalize(result)
         ###
 
@@ -195,7 +195,7 @@ class TestDecoder(unittest.TestCase):
         
         correct_result = {'a':'aa', None:'none', "True":'true', 0.3:'0.3', True:'true', ():False}
         def dict_gen():
-            return db.init_dict_gen(lambda: (i for i in tester[1:]))
+            return db._init_dict_gen(lambda: (i for i in tester[1:]))
         result = gen_normalize(dict_gen)
         self.assertEqual(result, correct_result)
         
@@ -209,10 +209,11 @@ class TestDecoder(unittest.TestCase):
         correct_result = {'gen': {'b': 'bb'}, 'gen2': {(): {}}}
 
         def dict_gen():
-            return db.init_dict_gen(lambda: (i for i in tester[1:]))
+            return db._init_dict_gen(lambda: (i for i in tester[1:]))
         result = gen_normalize(dict_gen)
 
         self.assertEqual(result, correct_result)
         
-
+    # def test_sort_keys(self):
+        
         
