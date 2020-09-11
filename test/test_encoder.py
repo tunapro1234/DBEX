@@ -21,7 +21,7 @@ class TestEncoder(unittest.TestCase):
         obj = [float("NaN")]
         result = db.dumps(obj)
         correct_result = "[NaN]"
-        self.assertEqual(result, correct_result) # ben malım
+        self.assertEqual(result, correct_result)  # ben malım
 
     def test_sort_keys(self):
         # Buna gelicem

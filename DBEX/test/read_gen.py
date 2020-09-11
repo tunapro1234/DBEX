@@ -22,16 +22,17 @@ def write(filename):
         return False
     else:
         return True
-        
+
 
 def test():
     filename = "dbex/res/test.dbex"
     # write(filename)
-    
+
     # gen = read_file_gen(filename)
     gen = read_file(filename)
     for i in gen:
         print(i, end="")
+
 
 if __name__ == "__main__":
     test()
