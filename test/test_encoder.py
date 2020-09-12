@@ -12,7 +12,7 @@ class TestEncoder(unittest.TestCase):
 
     def test_dump_gen(self):
         obj = ["a", [{"a": True, float("-Infinity"): float("Infinity")}]]
-        result = "".join([i for i in db._dump_gen(obj, 0)])
+        result = "".join([i for i in db._Encoder__dump_gen(obj, 0)])
         correct_result = '["a", [{"a": True, -Infinity: Infinity}]]'
 
         self.assertEqual(result, correct_result)

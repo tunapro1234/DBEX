@@ -1,4 +1,4 @@
-from dbex.lib.encrypt import encrypter as defaultEncrypter
+from dbex.lib.encryption import encrypter as defaultEncrypter_func
 """TODO
 \ geliştirilecek
 sort_keys
@@ -6,14 +6,14 @@ sort_keys
 
 
 class Encoder:
-    encrypter = defaultEncrypter
+    encrypter_func = defaultEncrypter_func
 
     @staticmethod
-    def _dump_gen_(obj,
-                   max_gen_lvl=1,
-                   gen_lvl=1,
-                   indent="",
-                   seperators=(", ", ": ")):
+    def __dump_gen_(obj,
+                    max_gen_lvl=1,
+                    gen_lvl=1,
+                    indent="",
+                    seperators=(", ", ": ")):
         if type(seperators) != tuple:
             raise Exception("Seperator error")
 
@@ -32,8 +32,8 @@ class Encoder:
                 elif indent:
                     yield "\n" + indent * (gen_lvl + 1)
 
-                for i in Encoder._dump_gen(element, max_gen_lvl, gen_lvl + 1,
-                                           indent):
+                for i in Encoder.__dump_gen(element, max_gen_lvl, gen_lvl + 1,
+                                            indent):
                     yield i
 
                 first = False
@@ -57,13 +57,13 @@ class Encoder:
                 # key döndürme
                 yield "".join([
                     i
-                    for i in Encoder._dump_gen_(key, max_gen_lvl, gen_lvl, "")
-                ]) if type(key) == tuple else Encoder._convert(key)
+                    for i in Encoder.__dump_gen_(key, max_gen_lvl, gen_lvl, "")
+                ]) if type(key) == tuple else Encoder.__convert(key)
                 yield parser2
 
                 # value döndürme
-                for i in Encoder._dump_gen(value, max_gen_lvl, gen_lvl + 1,
-                                           indent):
+                for i in Encoder.__dump_gen(value, max_gen_lvl, gen_lvl + 1,
+                                            indent):
                     yield i
 
                 first = False
@@ -76,28 +76,28 @@ class Encoder:
             yield obj
 
     @staticmethod
-    def _dump_gen(element,
-                  max_gen_lvl=0,
-                  gen_lvl=0,
-                  indent=0,
-                  seperators=(", ", ": ")):
+    def __dump_gen(element,
+                   max_gen_lvl=0,
+                   gen_lvl=0,
+                   indent=0,
+                   seperators=(", ", ": ")):
         indent = " " * indent if type(indent) == int else indent
 
         if type(element) in [tuple, list, dict]:
             if gen_lvl < max_gen_lvl:
-                for i in Encoder._dump_gen_(element, max_gen_lvl, gen_lvl,
-                                            indent, seperators):
+                for i in Encoder.__dump_gen_(element, max_gen_lvl, gen_lvl,
+                                             indent, seperators):
                     yield i
             else:
                 yield "".join([
-                    i for i in Encoder._dump_gen_(element, max_gen_lvl,
-                                                  gen_lvl, indent, seperators)
+                    i for i in Encoder.__dump_gen_(element, max_gen_lvl,
+                                                   gen_lvl, indent, seperators)
                 ])
         else:
-            yield Encoder._convert(element)
+            yield Encoder.__convert(element)
 
     @staticmethod
-    def _convert(element):
+    def __convert(element):
         if element in [float("Infinity"),
                        float("-Infinity")] or element != element:
             if element == float("Infinity"):
@@ -110,16 +110,16 @@ class Encoder:
             return f'"{element}"' if type(element) == str else str(element)
 
     @staticmethod
-    def _sort_keys(*args, **kwargs):
-        return args, kwargs
+    def sort_keys(rv, *args, **kwargs):
+        return rv
 
     @staticmethod
     def dumps(obj, sort_keys=0, **kwargs):
         if sort_keys:
-            return Encoder._sort_keys("".join(
-                [i for i in Encoder._dump_gen(obj, **kwargs)]))
+            return Encoder.sort_keys("".join(
+                [i for i in Encoder.__dump_gen(obj, **kwargs)]))
         else:
-            return "".join([i for i in Encoder._dump_gen(obj, **kwargs)])
+            return "".join([i for i in Encoder.__dump_gen(obj, **kwargs)])
 
     @staticmethod
     def dumps(obj,
@@ -128,32 +128,27 @@ class Encoder:
               seperators=(", ", ": "),
               sort_keys=0):
         if sort_keys:
-            return Encoder._sort_keys("".join([
-                i for i in Encoder._dump_gen(
+            return Encoder.sort_keys("".join([
+                i for i in Encoder.__dump_gen(
                     obj, max_gen_lvl=0, indent=0, seperators=(", ", ": "))
             ]))
         else:
             return "".join([
-                i for i in Encoder._dump_gen(
+                i for i in Encoder.__dump_gen(
                     obj, max_gen_lvl=0, indent=0, seperators=(", ", ": "))
             ])
 
     @staticmethod
     def dump(obj, file_path, **kwargs):
-        write_file(file_path, encrypter(dumps(obj, **kwargs)))
+        Encoder.write(file_path, Encoder.encrypter_func(dumps(obj, **kwargs)))
 
     @staticmethod
-    def write_file(*args, **kwargs):
-        return args, kwargs
+    def write(rv, *args, **kwargs):
+        return rv
 
 
 def test():
-    # import json
-    # json.dump()
-    # tester = ["tunapro", [[]], [[]], [[0, "[\\]"]]]
-    # dumps(tester)
-    # correct_result = '["tunapro", [[]], [[]], [[0, "[\\]"]]]'
-    pass
+    return
 
 
 if __name__ == "__main__":

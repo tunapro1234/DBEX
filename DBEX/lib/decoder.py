@@ -1,4 +1,4 @@
-from dbex.lib.encrypt import decrypter as defaultDecrypter
+from dbex.lib.encryption import decrypter as defaultDecrypter
 import types
 import time
 import json
@@ -10,7 +10,7 @@ gen_lvl
 
 
 class Decoder:
-    decrypter = defaultDecrypter
+    decrypter_func = defaultDecrypter
 
     @staticmethod
     def __tokenize(string, tokenizers="[{(\\,:\"')}]"):
@@ -434,15 +434,6 @@ class Decoder:
 
     @staticmethod
     def load(path, *args, encoding="utf-8", **kwargs):
-        """json.load'un çakması ve biraz daha kalitesizi
-
-        Args:
-            path (str): dosya yolu
-            encoding (str): Defaults to "utf-8".
-
-        Returns:
-            Dosyada yazılı olan obje
-        """
         generator_func = lambda: Decoder.__tokenize_gen(
             Decoder.read_gen(path, encoding=encoding))
         return Decoder.__load(generator_func,
@@ -451,40 +442,22 @@ class Decoder:
                               **kwargs)
 
     @staticmethod
-    def loads(string, *args, is_generator=0, **kwargs):
-        """json.loads'un çakması ve generator olabiliyor
-
-        Args:
-            string (str): dönüştürülmesi istenen obje
-            is_generator (int, optional): Generator olup olmayacağı. Defaults to 0.
-
-        Returns:
-            Eğer is_generator True verilirse generator döndüren fonksiyon döndürüyor,
-            değilse direkt olarak objenin kendisini döndürüyor
-        """
+    def loads(string, *args, gen_lvl=None, **kwargs):
         generator_func = lambda: Decoder.__tokenize_gen(string)
         return Decoder.__load(generator_func,
                               *args,
-                              is_generator=is_generator,
+                              gen_lvl=gen_lvl,
+                              is_generator=(1 if gen_lvl is not None else 0),
                               **kwargs)
 
     @staticmethod
     def loader(path, *args, encoding="utf-8", gen_lvl="all", **kwargs):
-        """ json.load'un generator hali
-
-        Args:
-            path (str): [okunacak dosyanın yolu]
-            encoding (str): Defaults to "utf-8".
-            gen_lvl (int, str): [generator objesinin derinliği]. Defaults to "all".
-
-        Returns:
-            Generator objesi döndüren bir fonksiyon
-        """
         generator_func = lambda: Decoder.__tokenize_gen(
             Decoder.read_gen(path, encoding=encoding))
         return Decoder.__load(generator_func,
                               *args,
-                              is_generator=True,
+                              gen_lvl=gen_lvl,
+                              is_generator=(1 if gen_lvl is not None else 0),
                               **kwargs)
 
     @staticmethod
