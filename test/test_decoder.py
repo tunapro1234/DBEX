@@ -231,5 +231,4 @@ class TestDecoder(unittest.TestCase):
         db._Decoder__ord_sum_writer(path)
 
         result = "".join([i for i in db.read_gen_wrapper(path)])
-        print(result)
         self.assertEqual(result, correct_result)

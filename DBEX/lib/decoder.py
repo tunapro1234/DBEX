@@ -621,38 +621,47 @@ class Decoder:
         index = 0
         # yapf: disable
         gen_func = lambda: Decoder._Decoder__tokenize(Decoder.read_gen_(path), tokenizers=header_tokenizer+header_ender)
-
-        for i in gen_func():
-            print(i)
-
         generator = gen_func()
 
         for part in generator:
             # alt satıra indiğinde iş bitti
             # ya da eğer ilk 3 eleman header tokenizera eşit değilse bozukluk var demektir
-            if index < 3 and part != header_tokenizer or part == "\n":
-                generator = gen_func()
+
+            if index == 3 and type((converted_part := Decoder._Decoder__convert(part))) == int:
+                ord_sum = converted_part
+                part = next(generator)
+
+                # alt satıra inme
+                while part == "\n":
+                    part = next(generator)
+
+                def new_gen():
+                    yield part
+                    for i in generator:
+                        yield i
+                # bu kadar zor olmamalıydı
+
+                for part_ in new_gen():
+                    ### Algoritma
+                    for char in part_:
+                        ord_sum -= ord(char)
+                        yield char
+
+                if ord_sum != 0:
+                    raise ValueError(f"File is corrupted... {ord_sum}")
+
                 break
 
-            elif index == 3 and type((converted_part := Decoder._Decoder__convert(part))) == int:
-                ord_sum = converted_part
-                if next(generator) == "\n" and next(generator) == "\n":
-                    for part_ in generator:
-                        ### Algoritma
-                        for char in part_:
-                            ord_sum -= ord(char)
-                            yield char
-
-                    if ord_sum != 0:
-                        raise ValueError(f"File is corrupted... {ord_sum}")
-
+            elif index < 3 and part != header_tokenizer or part == "\n" or index >= 3:
+                generator = gen_func()
                 break
 
             index -= -1
 
         # header yoksa baştan başla hepsini gönder
-        for i in generator:
-            yield i
+        for part in generator:
+            for char in part:
+                yield char
 
     @staticmethod
     def __ord_sum_writer(path):
