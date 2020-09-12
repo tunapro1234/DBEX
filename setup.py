@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name="DATABASE EXTENDED",
-    version="0.9.11",
+    version="0.9.12",
     description="generator reader for json files",
     url="https://github.com/tunapro1234/dbex/",
     author="TUNAPRO1234",

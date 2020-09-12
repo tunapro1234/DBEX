@@ -2,18 +2,25 @@ from dbex.lib.encryption import decrypter as defaultDecrypter
 import types
 import time
 import json
-"""TODO
-\ geliştirilecek
-sort_keys
-gen_lvl
-"""
+
+default_tokenizers = "[{(\\,:\"')}]"
 
 
 class Decoder:
     decrypter_func = defaultDecrypter
 
     @staticmethod
-    def __tokenize(string, tokenizers="[{(\\,:\"')}]"):
+    def __tokenize(string, tokenizers=default_tokenizers):
+        """Verilen tokenizerları verilen string (ya da generator) 
+        içinden alıp ayıklıyor (string değer kontrolü yok)
+
+        Args:
+            string (str): [string ya da stringi döndüren bir generator]
+            tokenizers (str): tokenizerlar işte. Defaults to Decoder.default_tokenizers.
+
+        Yields:
+            str: her bir özel parça ve arasında kalanlar
+        """
         # Son token indexi
         temp = ""
         last_token_index = 0
@@ -40,7 +47,20 @@ class Decoder:
             yield temp
 
     @staticmethod
-    def __tokenize_gen(reader_gen, tokenizers="[{(\\,:\"')}]"):
+    def __tokenize_gen(reader_gen, tokenizers=default_tokenizers):
+        """her ne kadar __tokenize fonksiyonunda tokenlara ayırmış olsak da 
+        tırnak işaretlerinin lanetine yakalanmaktan kurtulmak için bu fonksiyonu kullanıyoruz
+
+        Args:
+            reader_gen (Decoder.read_gen(dosya_yolu)): parça parça okunan değerleri yollayan herhangi bir generator olabilir
+            tokenizers (str): tokenizerlar işte. Defaults to Decoder.default_tokenizers.
+
+        Raises:
+            Exception: String dışında backslash kullanıldığında patlıyor
+
+        Yields:
+            str: her bir parça (ya token ya da element)
+        """
         #   eğer tırnak işaret ile string değer
         # girilmeye başlanmışsa değerlerin kaydolacağı liste
         active_str = None
@@ -118,6 +138,18 @@ class Decoder:
 
     @staticmethod
     def __init_list_gen(t_gen_func, tuple_mode=False):
+        """[ görüldüğünde çağırılan fonksiyon
+
+        Args:
+            t_gen_func (function): generator döndüren fonksiyon
+            tuple_mode (bool): tuple mı olacak list mi (kapanış belli olsun diye). Defaults to False.
+
+        Raises:
+            Exception: Syntax Errorleri
+
+        Yields:
+            Her tipten şey döndürüyor. Ama parantez açma tarzı bir şey çıkarsa generator döndüren fonksiyon döndürüyor 
+        """
         t_gen = t_gen_func()
         # son kullanılan index
         lui = -1
@@ -224,6 +256,17 @@ class Decoder:
 
     @staticmethod
     def __init_dict_gen(t_gen_func):
+        """[ görüldüğünde çağırılan fonksiyon
+
+        Args:
+            t_gen_func (function): generator döndüren fonksiyon
+
+        Raises:
+            Exception: Syntax Errorleri
+
+        Yields:
+            Her tipten şey döndürüyor. Ama parantez açma tarzı bir şey çıkarsa generator döndüren fonksiyon döndürüyor.
+        """
         t_gen = t_gen_func()
         key_val = ()
         is_on_value = False
@@ -336,6 +379,16 @@ class Decoder:
 
     @staticmethod
     def __find_next_closing(gen, index, type="[]"):
+        """sonraki parantez kapatma şeyini buluyor
+
+        Args:
+            gen (generator): Valla ne yaptığını hiç hatırlamıyorum
+            index (int): kUSURA bakma
+            type (str: "()", "[]", "{}"): [description]. Defaults to "[]".
+            
+        Returns:
+            [type]: [description]
+        """
         cot = 1
         if len(type) != 2:
             raise Exception("Benim hatam...")
@@ -351,6 +404,17 @@ class Decoder:
 
     @staticmethod
     def __convert(part):
+        """Verilen parçayı gerçek formuna büründürür (Bu dosyadaki tüm fonksiyonların amacı bu zaten ama)
+
+        Args:
+            part (str): parça
+
+        Raises:
+            Exception: Undefined variable
+
+        Returns:
+            part ama gerçek formu
+        """
         # Şimdilik JSON uyumlu olsun hadi
         json = True
         part = part.strip()
@@ -385,6 +449,19 @@ class Decoder:
 
     @staticmethod
     def __load(generator_func, *args, is_generator="all", **kwargs):
+        """Loadların Lordu
+
+        Args:
+            generator_func (function): generator (tokenize_gen) döndüren fonksiyon
+            is_generator (str, optional): generator objesinin sonda birleştirip birleştirilmeyeceğini belirliyor. Defaults to "all".
+
+        Raises:
+            Exception: Bakmaya üşendim
+
+        Returns:
+            is_generator false ise objenin kendisi
+            true ise generator döndüren fonksiyon
+        """
         generator_func2 = lambda: (j for i, j in enumerate(generator_func())
                                    if i != 0)
         generator = generator_func()
@@ -434,6 +511,7 @@ class Decoder:
 
     @staticmethod
     def load(path, *args, encoding="utf-8", **kwargs):
+        # Bunun açıklaması init dosyasında olucak
         generator_func = lambda: Decoder.__tokenize_gen(
             Decoder.read_gen(path, encoding=encoding))
         return Decoder.__load(generator_func,
@@ -443,6 +521,7 @@ class Decoder:
 
     @staticmethod
     def loads(string, *args, gen_lvl=None, **kwargs):
+        # Bunun açıklaması init dosyasında olucak
         generator_func = lambda: Decoder.__tokenize_gen(string)
         return Decoder.__load(generator_func,
                               *args,
@@ -452,6 +531,7 @@ class Decoder:
 
     @staticmethod
     def loader(path, *args, encoding="utf-8", gen_lvl="all", **kwargs):
+        # Bunun açıklaması init dosyasında olucak
         generator_func = lambda: Decoder.__tokenize_gen(
             Decoder.read_gen(path, encoding=encoding))
         return Decoder.__load(generator_func,
@@ -462,6 +542,14 @@ class Decoder:
 
     @staticmethod
     def gen_normalizer(gen_func):
+        """__load fonksiyonun generator fonksiyonunu objeye dönüştüren fonksiyon
+
+        Args:
+            gen_func (function): Generator döndüren fonksiyon alıyor (is_generator=0 __load'un çıktısı gibi)
+
+        Returns:
+            objenin kendisi
+        """
         gen = gen_func()
         if gen_func.__name__ == "dict_gen":
             final = {}
@@ -483,6 +571,15 @@ class Decoder:
 
     @staticmethod
     def read_gen(path, encoding="utf-8"):
+        """Dosya okuyucu (tek tek)
+
+        Args:
+            path (str): okunacak dosya yolu
+            encoding (str): elleme. Defaults to "utf-8".
+
+        Yields:
+            str: her bir karakter
+        """
         #   Dosyanın sonuna gelmediğimiz
         # sürece sonraki elemanı okuyup yolla
         char = True
@@ -492,34 +589,27 @@ class Decoder:
 
     @staticmethod
     def read(path, encoding="utf-8"):
+        """Normal direkt okuma
+
+        Args:
+            path (dosya yolu): okunacak dosya yolu 
+            encoding (str, optional): elleme. Defaults to "utf-8".
+
+        Returns:
+            okunan dosyanın içinde yazanlar
+        """
         # Hepsini oku yolla
         with open(path, encoding=encoding) as f:
             return f.read()
-        # neden var bilmiyorum
 
 
 def _timer(func):
     #   ilk baştaki mal tokenizing algoritmamda sorting
     # metodunu değiştirmenin ne kadar etkileyecğini görmek içindi
-    def wrapper():
+    def wrapper(*args, **kwargs):
         # Güzel özellik
         start = time.time()
-        func()
+        func(*args, **kwargs)
         print(time.time() - start)
 
     return wrapper
-
-
-@_timer
-def test():
-    # tester = [ "{",
-    #                     "'gen'", ":", "{", "'b'", ":", "'bb'", "}", ",",
-    #                     "'gen2'", ":", "{", "(", ")", ":", "{", "}", "}",
-    #                 "}" ]
-    # print(repr(tester)[1:-1])
-    # print(loads(tester, is_generator=0))
-    pass
-
-
-if __name__ == "__main__":
-    test()

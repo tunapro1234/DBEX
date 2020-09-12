@@ -1,7 +1,5 @@
-from dbex.lib.encryption import empty_encrypter as emptyEncrypter
-from dbex.lib.encryption import empty_decrypter as emptyDecrypter
-from dbex.lib.encryption import encrypter as defaultEncrypter
-from dbex.lib.encryption import decrypter as defaultDecrypter
+from dbex.lib.encryption import defaultEncrypter, defaultDecrypter
+from dbex.lib.encryption import emptyEncrypter, emptyDecrypter
 
 from dbex.lib.encoder import Encoder as defaultEncoder
 from dbex.lib.decoder import Decoder as defaultDecoder
@@ -11,8 +9,16 @@ currentDecrypter = emptyDecrypter
 currentEncoder = defaultEncoder
 currentDecoder = defaultDecoder
 
-#   Tüm fonksiyonlar birbirini gereksiz
-# fazla tekrar ediyor çok rahatsız edici
+"                       TO DO:                       "
+"""######################################################
+# Decoder için gen_lvl 
+# Decoder ve Encoderda sort_keys
+# Decoder ve Encoder için Exception classları
+# Decoder ve Encoder için backslah geliştirmesi
+# Biraz daha açıklama koymam çok hoş olabilirdi
+# Encoder kısmı Decoder koduna göre çok düzensiz kaçıyor 
+
+######################################################"""
 
 
 def __Econfigure(cls, encrypter):

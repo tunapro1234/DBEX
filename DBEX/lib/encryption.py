@@ -12,3 +12,9 @@ def empty_encrypter(rv, *args, **kwargs):
 
 def empty_decrypter(rv, *args, **kwargs):
     return rv
+
+
+emptyEncrypter = empty_encrypter
+emptyDecrypter = empty_decrypter
+defaultEncrypter = encrypter
+defaultDecrypter = decrypter
