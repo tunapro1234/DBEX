@@ -1,7 +1,13 @@
-from dbex.lib.encrypt import encrypter as encrypter
+from dbex.lib.encrypt import encrypter as defaultEncrypter
+"""TODO
+\ geliştirilecek
+sort_keys
+"""
 
 
 class Encoder:
+    encrypter = defaultEncrypter
+
     @staticmethod
     def _dump_gen_(obj,
                    max_gen_lvl=1,
@@ -11,8 +17,8 @@ class Encoder:
         if type(seperators) != tuple:
             raise Exception("Seperator error")
 
-        parser1 = seperators[1]
-        parser2 = seperators[0].rstrip() if indent else seperators[0]
+        parser1 = seperators[0].rstrip() if indent else seperators[0]
+        parser2 = seperators[1]
 
         if type(obj) in [list, tuple]:
             first = True
@@ -20,8 +26,8 @@ class Encoder:
 
             for element in obj:
                 if not first:
-                    yield parser2 + "\n" + indent * (gen_lvl +
-                                                     1) if indent else parser2
+                    yield parser1 + "\n" + indent * (gen_lvl +
+                                                     1) if indent else parser1
 
                 elif indent:
                     yield "\n" + indent * (gen_lvl + 1)
@@ -42,8 +48,8 @@ class Encoder:
 
             for key, value in obj.items():
                 if not first:
-                    yield parser2 + "\n" + indent * (gen_lvl +
-                                                     1) if indent else parser2
+                    yield parser1 + "\n" + indent * (gen_lvl +
+                                                     1) if indent else parser1
 
                 elif indent:
                     yield "\n" + indent * (gen_lvl + 1)
@@ -53,7 +59,7 @@ class Encoder:
                     i
                     for i in Encoder._dump_gen_(key, max_gen_lvl, gen_lvl, "")
                 ]) if type(key) == tuple else Encoder._convert(key)
-                yield parser1
+                yield parser2
 
                 # value döndürme
                 for i in Encoder._dump_gen(value, max_gen_lvl, gen_lvl + 1,
@@ -142,11 +148,12 @@ class Encoder:
 
 
 def test():
-    import json
-    json.dump()
-    tester = ["tunapro", [[]], [[]], [[0, "[\\]"]]]
-    dumps(tester)
-    correct_result = '["tunapro", [[]], [[]], [[0, "[\\]"]]]'
+    # import json
+    # json.dump()
+    # tester = ["tunapro", [[]], [[]], [[0, "[\\]"]]]
+    # dumps(tester)
+    # correct_result = '["tunapro", [[]], [[]], [[0, "[\\]"]]]'
+    pass
 
 
 if __name__ == "__main__":
