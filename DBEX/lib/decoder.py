@@ -7,6 +7,7 @@ default_tokenizers = "[{(\\,:\"')}]"
 
 
 class Decoder:
+    # şunu reader ile değiştir
     decrypter_func = defaultDecrypter
 
     @staticmethod
@@ -588,7 +589,7 @@ class Decoder:
                 yield (char := f.read(1))
 
     @staticmethod
-    def read_gen_(path, encoding="utf-8"):
+    def read_gen_safe(path, encoding="utf-8"):
         #       her seferinde dosyayı açıp kaptması dosya okuma ve
         #   yazma bakımından hoş olmasına rağmen hız açısından
         # yeteri kadar verimli olacağını düşünmüyorum
@@ -620,7 +621,7 @@ class Decoder:
         "###56"  # örnek header
         index = 0
         # yapf: disable
-        gen_func = lambda: Decoder._Decoder__tokenize(Decoder.read_gen_(path), tokenizers=header_tokenizer+header_ender)
+        gen_func = lambda: Decoder._Decoder__tokenize(Decoder.read_gen_safe(path), tokenizers=header_tokenizer+header_ender)
         generator = gen_func()
 
         for part in generator:
