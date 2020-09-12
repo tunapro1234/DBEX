@@ -220,3 +220,16 @@ class TestDecoder(unittest.TestCase):
         self.assertEqual(result, correct_result)
 
     # def test_sort_keys(self):
+
+
+    def test_header(self):
+        correct_result = '["tuna", "pro"]'
+        path = "dbex/res/test_header.dbex"
+        with open(path, "w") as file:
+            file.write(correct_result)
+
+        db._Decoder__ord_sum_writer(path)
+
+        result = "".join([i for i in db.read_gen_wrapper(path)])
+        print(result)
+        self.assertEqual(result, correct_result)

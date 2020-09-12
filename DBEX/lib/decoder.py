@@ -588,6 +588,19 @@ class Decoder:
                 yield (char := f.read(1))
 
     @staticmethod
+    def read_gen_(path, encoding="utf-8"):
+        #       her seferinde dosyayı açıp kaptması dosya okuma ve
+        #   yazma bakımından hoş olmasına rağmen hız açısından
+        # yeteri kadar verimli olacağını düşünmüyorum
+
+        index = -1
+        char = True
+        while char:
+            with open(path, encoding=encoding) as file:
+                file.seek((index := index + 1), 0)
+                yield (char := file.read(1))
+
+    @staticmethod
     def read(path, encoding="utf-8"):
         """Normal direkt okuma
 
@@ -601,6 +614,55 @@ class Decoder:
         # Hepsini oku yolla
         with open(path, encoding=encoding) as f:
             return f.read()
+
+    @staticmethod
+    def read_gen_wrapper(path, header_tokenizer="#", header_ender="\n"):
+        "###56"  # örnek header
+        index = 0
+        # yapf: disable
+        gen_func = lambda: Decoder._Decoder__tokenize(Decoder.read_gen_(path), tokenizers=header_tokenizer+header_ender)
+
+        for i in gen_func():
+            print(i)
+
+        generator = gen_func()
+
+        for part in generator:
+            # alt satıra indiğinde iş bitti
+            # ya da eğer ilk 3 eleman header tokenizera eşit değilse bozukluk var demektir
+            if index < 3 and part != header_tokenizer or part == "\n":
+                generator = gen_func()
+                break
+
+            elif index == 3 and type((converted_part := Decoder._Decoder__convert(part))) == int:
+                ord_sum = converted_part
+                if next(generator) == "\n" and next(generator) == "\n":
+                    for part_ in generator:
+                        ### Algoritma
+                        for char in part_:
+                            ord_sum -= ord(char)
+                            yield char
+
+                    if ord_sum != 0:
+                        raise ValueError(f"File is corrupted... {ord_sum}")
+
+                break
+
+            index -= -1
+
+        # header yoksa baştan başla hepsini gönder
+        for i in generator:
+            yield i
+
+    @staticmethod
+    def __ord_sum_writer(path):
+        # geçici örnek
+        with open(path, "r") as file:
+            read = file.read()
+        ord_sum = sum([ord(char) for char in read])
+        with open(path, "w") as file:
+            file.write(f"###{ord_sum}\n{read}")
+
 
 
 def _timer(func):

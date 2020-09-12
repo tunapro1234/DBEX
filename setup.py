@@ -3,7 +3,7 @@ from setuptools import setup
 setup(
     name="DATABASE EXTENDED",
     version="0.9.12",
-    description="generator reader for json files",
+    description="json-like encoder and decoder",
     url="https://github.com/tunapro1234/dbex/",
     author="TUNAPRO1234",
     author_email="tunagul54@gmail.com",
