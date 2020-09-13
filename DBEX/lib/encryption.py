@@ -1,3 +1,11 @@
+def version():
+    with open("dbex/res/VERSION.txt") as file:
+        return file.read()
+
+
+__version__ = version()
+
+
 def encrypter(rv, *args, **kwargs):
     return rv
 

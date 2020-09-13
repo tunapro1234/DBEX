@@ -1,17 +1,46 @@
-from dbex.lib.encryption import decrypter as defaultDecrypter
-import types
-import time
-import json
+from dbex.lib.encryption import decrypter
+import types, time
 
-default_tokenizers = "[{(\\,:\"')}]"
+
+def version():
+    with open("dbex/res/VERSION.txt") as file:
+        return file.read()
+
+
+__version__ = version()
 
 
 class Decoder:
-    # şunu reader ile değiştir
-    decrypter_func = defaultDecrypter
+    default_tokenizers = "[{(\\,:\"')}]"
+    header_shape = {
+        "hash": [str],
+        "version": [int],
+        "database_shape": [list, dict],
+        "header_hash": [str]
+    }
 
-    @staticmethod
-    def __tokenize(string, tokenizers=default_tokenizers):
+    def __init__(
+        self,
+        default_path=None,
+        default_file_encoding=None,
+        encryption=None,
+        encryption_pass=None,
+        header=None,
+        default_header_path=None,
+        changed_file_action=None,
+        database_shape=None,
+        database_form_gen_lvl=None,
+    ):
+        self.default_header_path = default_header_path
+        self.changed_file_action = changed_file_action
+        self.default_encoding = default_file_encoding
+        self.encryption_pass = encryption_pass
+        self.database_form = database_shape
+        self.default_path = default_path
+        self.encryption = encryption
+        self.header = header
+
+    def __tokenize(self, string, tokenizers=None):
         """Verilen tokenizerları verilen string (ya da generator) 
         içinden alıp ayıklıyor (string değer kontrolü yok)
 
@@ -22,6 +51,7 @@ class Decoder:
         Yields:
             str: her bir özel parça ve arasında kalanlar
         """
+        tokenizers = self.default_tokenizers if tokenizers is None else tokenizers
         # Son token indexi
         temp = ""
         last_token_index = 0
@@ -47,8 +77,7 @@ class Decoder:
         if ending_index != last_token_index:
             yield temp
 
-    @staticmethod
-    def __tokenize_gen(reader_gen, tokenizers=default_tokenizers):
+    def __tokenize_gen(self, reader_gen, tokenizers=None):
         """her ne kadar __tokenize fonksiyonunda tokenlara ayırmış olsak da 
         tırnak işaretlerinin lanetine yakalanmaktan kurtulmak için bu fonksiyonu kullanıyoruz
 
@@ -62,6 +91,7 @@ class Decoder:
         Yields:
             str: her bir parça (ya token ya da element)
         """
+        tokenizers = self.default_tokenizers if tokenizers is None else tokenizers
         #   eğer tırnak işaret ile string değer
         # girilmeye başlanmışsa değerlerin kaydolacağı liste
         active_str = None
@@ -70,7 +100,7 @@ class Decoder:
         # Önceki elemanın \ olup olmadığı
         is_prv_bs = False
 
-        for part in Decoder.__tokenize(reader_gen, tokenizers):
+        for part in self.__tokenize(reader_gen, tokenizers):
             if part in ["'", '"', "\\"]:
                 # Parça tırnak işaretiyse
                 if part in ["'", '"']:
@@ -137,8 +167,7 @@ class Decoder:
                 elif part.strip() != "":
                     yield part
 
-    @staticmethod
-    def __init_list_gen(t_gen_func, tuple_mode=False):
+    def __init_list_gen(self, t_gen_func, tuple_mode=False):
         """[ görüldüğünde çağırılan fonksiyon
 
         Args:
@@ -173,42 +202,42 @@ class Decoder:
                 if part in "[{(":
                     if (ci - 1) == lui:
                         if part == "[":
-                            next_closing = Decoder.__find_next_closing(
+                            next_closing = self.__find_next_closing(
                                 t_gen, index, "[]")
                             new_gen_func = lambda: (j for i, j in enumerate(
                                 t_gen_func()) if index < i <= next_closing)
 
                             def list_gen():
-                                return (i for i in Decoder.__init_list_gen(
+                                return (i for i in self.__init_list_gen(
                                     new_gen_func))
 
                             yield list_gen
                             index = next_closing
 
                         elif part == "{":
-                            next_closing = Decoder.__find_next_closing(
+                            next_closing = self.__find_next_closing(
                                 t_gen, index, "{}")
                             new_gen_func = lambda: (j for i, j in enumerate(
                                 t_gen_func()) if index < i <= next_closing)
 
                             def dict_gen():
-                                return (i for i in Decoder.__init_dict_gen(
+                                return (i for i in self.__init_dict_gen(
                                     new_gen_func))
 
                             yield dict_gen
                             index = next_closing
 
                         elif part == "(":
-                            next_closing = Decoder.__find_next_closing(
+                            next_closing = self.__find_next_closing(
                                 t_gen, index, "()")
                             new_gen_func = lambda: (j for i, j in enumerate(
                                 t_gen_func()) if index < i <= next_closing)
 
                             def tuple_gen():
-                                return (i for i in Decoder.__init_list_gen(
+                                return (i for i in self.__init_list_gen(
                                     new_gen_func, tuple_mode=1))
 
-                            yield tuple(Decoder.gen_normalizer(tuple_gen))
+                            yield tuple(self.gen_normalizer(tuple_gen))
                             index = next_closing
 
                         else:
@@ -246,7 +275,7 @@ class Decoder:
                 # Virgül koyulup yeni yer açılmışsa
                 if (ci - 1) == lui:
                     # ekle işte
-                    yield Decoder.__convert(part)
+                    yield self.__convert(part)
                     # luici kesinlikle kasıtlı değildi
                     lui = ci
                     # Yukarda demiştim zaten işte
@@ -255,8 +284,7 @@ class Decoder:
                     # lui ile ci farklı olmazsa virgül koyulmadığını anlıyor
                     raise Exception("Syntax Error (,) (Code 004)")
 
-    @staticmethod
-    def __init_dict_gen(t_gen_func):
+    def __init_dict_gen(self, t_gen_func):
         """[ görüldüğünde çağırılan fonksiyon
 
         Args:
@@ -281,17 +309,16 @@ class Decoder:
                 if part in "[{(":
                     if len(key_val) == 0 and not is_on_value:
                         if part == "(":
-                            next_closing = Decoder.__find_next_closing(
+                            next_closing = self.__find_next_closing(
                                 t_gen, index, "()")
                             new_gen_func = lambda: (j for i, j in enumerate(
                                 t_gen_func()) if index < i <= next_closing)
 
                             def tuple_gen():
-                                return (i for i in Decoder.__init_list_gen(
+                                return (i for i in self.__init_list_gen(
                                     new_gen_func, tuple_mode=1))
 
-                            key_val = (tuple(
-                                Decoder.gen_normalizer(tuple_gen)), )
+                            key_val = (tuple(self.gen_normalizer(tuple_gen)), )
                             index = next_closing
 
                         else:
@@ -301,44 +328,44 @@ class Decoder:
                         # elif (ci-1) == lui: # and not len(key_val) == 2
                         if part == "[":
                             # Generator recursion
-                            next_closing = Decoder.__find_next_closing(
+                            next_closing = self.__find_next_closing(
                                 t_gen, index, "[]")
                             new_gen_func = lambda: (j for i, j in enumerate(
                                 t_gen_func()) if index < i <= next_closing)
 
                             def list_gen():
-                                return (i for i in Decoder.__init_list_gen(
+                                return (i for i in self.__init_list_gen(
                                     new_gen_func))
 
                             yield (key_val := (key_val[0], list_gen))
                             index = next_closing
 
                         elif part == "{":
-                            next_closing = Decoder.__find_next_closing(
+                            next_closing = self.__find_next_closing(
                                 t_gen, index, "{}")
                             new_gen_func = lambda: (j for i, j in enumerate(
                                 t_gen_func()) if index < i <= next_closing)
 
                             def dict_gen():
-                                return (i for i in Decoder.__init_dict_gen(
+                                return (i for i in self.__init_dict_gen(
                                     new_gen_func))
 
                             yield (key_val := (key_val[0], dict_gen))
                             index = next_closing
 
                         elif part == "(":
-                            next_closing = Decoder.__find_next_closing(
+                            next_closing = self.__find_next_closing(
                                 t_gen, index, "()")
                             new_gen_func = lambda: (j for i, j in enumerate(
                                 t_gen_func()) if index < i <= next_closing)
 
                             def tuple_gen():
-                                return (i for i in Decoder.__init_list_gen(
+                                return (i for i in self.__init_list_gen(
                                     new_gen_func, tuple_mode=1))
 
                             yield (key_val :=
                                    (key_val[0],
-                                    tuple(Decoder.gen_normalizer(tuple_gen))))
+                                    tuple(self.gen_normalizer(tuple_gen))))
                             index = next_closing
 
                         else:
@@ -366,7 +393,7 @@ class Decoder:
 
             # Aktif parça token değilse
             else:
-                part = Decoder.__convert(part)
+                part = self.__convert(part)
                 # Key belirleniyorsa
                 if not is_on_value:
                     key_val = (part, )
@@ -378,8 +405,7 @@ class Decoder:
                 else:
                     raise Exception("Syntax Error (::) (Code 010)")
 
-    @staticmethod
-    def __find_next_closing(gen, index, type="[]"):
+    def __find_next_closing(self, gen, index, type="[]"):
         """sonraki parantez kapatma şeyini buluyor
 
         Args:
@@ -403,8 +429,7 @@ class Decoder:
 
         return index
 
-    @staticmethod
-    def __convert(part):
+    def __convert(self, part):
         """Verilen parçayı gerçek formuna büründürür (Bu dosyadaki tüm fonksiyonların amacı bu zaten ama)
 
         Args:
@@ -448,8 +473,7 @@ class Decoder:
         else:
             raise Exception(f"Syntax Error [{part}] is not defined.")
 
-    @staticmethod
-    def __load(generator_func, *args, is_generator="all", **kwargs):
+    def __load(self, generator_func, *args, is_generator="all", **kwargs):
         """Loadların Lordu
 
         Args:
@@ -473,30 +497,29 @@ class Decoder:
         if first_element == "[":
 
             def list_gen():
-                return (i for i in Decoder.__init_list_gen(generator_func2))
+                return (i for i in self.__init_list_gen(generator_func2))
 
             if is_generator:
                 return list_gen
             else:
-                return Decoder.gen_normalizer(list_gen)
+                return self.gen_normalizer(list_gen)
 
         elif first_element == "{":
 
             def dict_gen():
-                return (i for i in Decoder.__init_dict_gen(generator_func2))
+                return (i for i in self.__init_dict_gen(generator_func2))
 
             if is_generator:
                 return dict_gen(generator_func2)
             else:
-                return Decoder.gen_normalizer(dict_gen)
+                return self.gen_normalizer(dict_gen)
 
         elif first_element == "(":
             return tuple(
                 # yapf: disable
-                Decoder.gen_normalizer(
+                self.gen_normalizer(
                     (i
-                     for i in Decoder.__init_list_gen(generator, tuple_mode=1))
-                ))
+                     for i in self.__init_list_gen(generator, tuple_mode=1))))
 
         else:
             #   eğer direkt olarak sadece 1 değer
@@ -504,45 +527,73 @@ class Decoder:
             try:
                 next(generator)
             except StopIteration:
-                return Decoder.__convert(first_element)
+                return self.__convert(first_element)
             else:
                 raise Exception("Syntax Error (Code 007)")
             # gen_next = "".join([i for i in generator])
             # part = str(first_element) + "".join(gen_next)
 
-    @staticmethod
-    def load(path, *args, encoding="utf-8", **kwargs):
-        # Bunun açıklaması init dosyasında olucak
-        generator_func = lambda: Decoder.__tokenize_gen(
-            Decoder.read_gen(path, encoding=encoding))
-        return Decoder.__load(generator_func,
-                              *args,
-                              is_generator=False,
-                              **kwargs)
+    def load(self, path=None, *args, encoding=None, **kwargs):
+        """json.load'un çakması
 
-    @staticmethod
-    def loads(string, *args, gen_lvl=None, **kwargs):
-        # Bunun açıklaması init dosyasında olucak
-        generator_func = lambda: Decoder.__tokenize_gen(string)
-        return Decoder.__load(generator_func,
-                              *args,
-                              gen_lvl=gen_lvl,
-                              is_generator=(1 if gen_lvl is not None else 0),
-                              **kwargs)
+        Args:
+            path (str): dosya yolu
+            encoding (str): Defaults to "utf-8".
 
-    @staticmethod
-    def loader(path, *args, encoding="utf-8", gen_lvl="all", **kwargs):
-        # Bunun açıklaması init dosyasında olucak
-        generator_func = lambda: Decoder.__tokenize_gen(
-            Decoder.read_gen(path, encoding=encoding))
-        return Decoder.__load(generator_func,
-                              *args,
-                              gen_lvl=gen_lvl,
-                              is_generator=(1 if gen_lvl is not None else 0),
-                              **kwargs)
+        Returns:
+            Dosyada yazılı olan obje
+        """
+        path = self.default_path if path is None else path
+        encoding = self.default_encoding if encoding is None else encoding
 
-    @staticmethod
-    def gen_normalizer(gen_func):
+        generator_func = lambda: self.__tokenize_gen(
+            self.read_gen(path, encoding=encoding))
+        return self.__load(generator_func, *args, is_generator=False, **kwargs)
+
+    def loads(self, string, *args, gen_lvl=None, **kwargs):
+        """json.loads'un çakması ve generator olabiliyor
+
+        Args:
+            string (str): dönüştürülmesi istenen obje
+            is_generator (int, optional): Generator olup olmayacağı. Defaults to 0.
+
+        Returns:
+            Eğer is_generator True verilirse generator döndüren fonksiyon döndürüyor,
+            değilse direkt olarak objenin kendisini döndürüyor
+        """
+        generator_func = lambda: self.__tokenize_gen(string)
+        return self.__load(generator_func,
+                           *args,
+                           gen_lvl=gen_lvl,
+                           is_generator=(1 if gen_lvl is not None else 0),
+                           **kwargs)
+
+    def loader(self, path=None, *args, encoding=None, gen_lvl="all", **kwargs):
+        """json.load'un generator hali
+
+        Args:
+            path (str): okunacak dosyanın yolu
+            cls (class): Decoder classı (elleme). Defaults to Decoder from dbex.lib.decoder.
+            decrypter (function): decryption türü. Defaults to empty_decrypter from dbex.lib.encryption.
+            
+            encoding (str): Defaults to "utf-8".
+            gen_lvl (int, str): generator objesinin derinliği. Defaults to "all".
+
+        Returns:
+            (Dosyada yazanları döndüren generator) objesi döndüren bir fonksiyon
+        """
+        path = self.default_path if path is None else path
+        encoding = self.default_encoding if encoding is None else encoding
+
+        generator_func = lambda: self.__tokenize_gen(
+            self.read_gen(path, encoding=encoding))
+        return self.__load(generator_func,
+                           *args,
+                           gen_lvl=gen_lvl,
+                           is_generator=(1 if gen_lvl is not None else 0),
+                           **kwargs)
+
+    def gen_normalizer(self, gen_func):
         """__load fonksiyonun generator fonksiyonunu objeye dönüştüren fonksiyon
 
         Args:
@@ -556,7 +607,7 @@ class Decoder:
             final = {}
             for key, value in gen:
                 if callable(value):
-                    final[key] = Decoder.gen_normalizer(value)
+                    final[key] = self.gen_normalizer(value)
                 else:
                     final[key] = value
 
@@ -564,23 +615,25 @@ class Decoder:
             final = []
             for value in gen:
                 if callable(value):
-                    final.append(Decoder.gen_normalizer(value))
+                    final.append(self.gen_normalizer(value))
                 else:
                     final.append(value)
 
         return final
 
-    @staticmethod
-    def read_gen(path, encoding="utf-8"):
+    def read_gen(self, path=None, encoding=None):
         """Dosya okuyucu (tek tek)
 
         Args:
-            path (str): okunacak dosya yolu
-            encoding (str): elleme. Defaults to "utf-8".
+            path (str): okunacak dosya yolu. None verilirse defaultu alır
+            encoding (str): elleme. None verilirse defaultu alır
 
         Yields:
             str: her bir karakter
         """
+        path = self.default_path if path is None else path
+        encoding = self.default_encoding if encoding is None else encoding
+
         #   Dosyanın sonuna gelmediğimiz
         # sürece sonraki elemanı okuyup yolla
         char = True
@@ -588,11 +641,13 @@ class Decoder:
             while char:
                 yield (char := f.read(1))
 
-    @staticmethod
-    def read_gen_safe(path, encoding="utf-8"):
+    def read_gen_safe(self, path=None, encoding=None):
         #       her seferinde dosyayı açıp kaptması dosya okuma ve
         #   yazma bakımından hoş olmasına rağmen hız açısından
         # yeteri kadar verimli olacağını düşünmüyorum
+
+        path = self.default_path if path is None else path
+        encoding = self.default_encoding if encoding is None else encoding
 
         index = -1
         char = True
@@ -601,8 +656,7 @@ class Decoder:
                 file.seek((index := index + 1), 0)
                 yield (char := file.read(1))
 
-    @staticmethod
-    def read(path, encoding="utf-8"):
+    def read(self, path=None, encoding=None):
         """Normal direkt okuma
 
         Args:
@@ -612,67 +666,63 @@ class Decoder:
         Returns:
             okunan dosyanın içinde yazanlar
         """
+        path = self.default_path if path is None else path
+        encoding = self.default_encoding if encoding is None else encoding
+
         # Hepsini oku yolla
         with open(path, encoding=encoding) as f:
             return f.read()
 
-    @staticmethod
-    def read_gen_wrapper(path, header_tokenizer="#", header_ender="\n"):
-        "###56"  # örnek header
-        index = 0
-        # yapf: disable
-        gen_func = lambda: Decoder._Decoder__tokenize(Decoder.read_gen_safe(path), tokenizers=header_tokenizer+header_ender)
-        generator = gen_func()
+    def __find_header_path(self, path=None):
+        # biraz sakat
+        path = self.default_path if path is None else path
+        seperator = "\\" if "\\" in path else "/"
+        spath = path.split(seperator)
+        new_path = seperator.join([i for i in spath + [f".{spath[-1]}.chex"]])
+        return new_path
 
-        for part in generator:
-            # alt satıra indiğinde iş bitti
-            # ya da eğer ilk 3 eleman header tokenizera eşit değilse bozukluk var demektir
+    def header_reader(self,
+                      path=None,
+                      header_tokenizer="#",
+                      header_ender="\n",
+                      safe=True):
 
-            if index == 3 and type((converted_part := Decoder._Decoder__convert(part))) == int:
-                ord_sum = converted_part
-                part = next(generator)
+        path = self.default_path if path is None else path
+        self.deafult_header_path = path = self.__find_header_path(
+            self.default_path) if path is None else path
 
-                # alt satıra inme
-                while part == "\n":
-                    part = next(generator)
+        gen_func = self.loader(path, gen_lvl=1)
+        gen = gen_func()
 
-                def new_gen():
-                    yield part
-                    for i in generator:
-                        yield i
-                # bu kadar zor olmamalıydı
+        for key, value in gen:
+            if key == "database_shape" and value:
+                pass
 
-                for part_ in new_gen():
-                    ### Algoritma
-                    for char in part_:
-                        ord_sum -= ord(char)
-                        yield char
+            elif key == "hash":
+                pass
 
-                if ord_sum != 0:
-                    raise ValueError(f"File is corrupted... {ord_sum}")
+            elif key == "version":
+                pass
 
-                break
+            elif key == "header_hash":
+                pass
 
-            elif index < 3 and part != header_tokenizer or part == "\n" or index >= 3:
-                generator = gen_func()
-                break
+            else:
+                self.preform_action(path, self.header_shape)
 
-            index -= -1
+    def preform_action(self, path):
+        if self.changed_file_action == 1:
+            print(f"[WARN] The file has changed: [{path}]")
 
-        # header yoksa baştan başla hepsini gönder
-        for part in generator:
-            for char in part:
-                yield char
+        elif self.changed_file_action > 2:
+            self.reset_file(path)
 
-    @staticmethod
-    def __ord_sum_writer(path):
-        # geçici örnek
-        with open(path, "r") as file:
-            read = file.read()
-        ord_sum = sum([ord(char) for char in read])
-        with open(path, "w") as file:
-            file.write(f"###{ord_sum}\n{read}")
+        elif self.changed_file_action > 3:
+            with open(path, "w+") as file:
+                file.write("")
 
+    def reset_file(self, path, shape):
+        pass
 
 
 def _timer(func):

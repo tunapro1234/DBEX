@@ -1,5 +1,13 @@
 from setuptools import setup
 
+
+def version():
+    with open("dbex/res/VERSION.txt") as file:
+        return file.read()
+
+
+__version__ = version()
+
 setup(
     name="DATABASE EXTENDED",
     version="0.9.12",

@@ -1,8 +1,12 @@
 from dbex.lib.encryption import encrypter as defaultEncrypter_func
-"""TODO
-\ geliştirilecek
-sort_keys
-"""
+
+
+def version():
+    with open("dbex/res/VERSION.txt") as file:
+        return file.read()
+
+
+__version__ = version()
 
 
 class Encoder:

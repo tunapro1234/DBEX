@@ -1,4 +1,5 @@
-import dbex.__init__ as dbex  # sonunda
+from dbex.__init__ import Decoder  # sonunda
+from dbex.__init__ import Encoder
 import unittest
 import os
 
@@ -45,11 +46,15 @@ def _print_gen(gen_func, *args, **kwargs):
     return final
 
 
+dec = Decoder()
+enc = Encoder()
+
+
 class TestMainPackage(unittest.TestCase):
     test_file = "test_init.json"
 
     def test_loads(self):
-        result = dbex.loads("[]")
+        result = dec.loads("[]")
         correct_result = []
         self.assertEqual(result, correct_result)
 
@@ -58,7 +63,7 @@ class TestMainPackage(unittest.TestCase):
         with open(self.test_file, "w+") as file:
             file.write(str(correct_result))
 
-        result = dbex.load(self.test_file)
+        result = dec.load(self.test_file)
         self.assertEqual(result, correct_result)
 
         os.remove(self.test_file)
@@ -68,7 +73,7 @@ class TestMainPackage(unittest.TestCase):
         with open(self.test_file, "w+") as file:
             file.write(str(correct_result))
 
-        result = _gen_normalize(dbex.loader(self.test_file))
+        result = _gen_normalize(dec.loader(self.test_file))
         self.assertEqual(result, correct_result)
 
         os.remove(self.test_file)

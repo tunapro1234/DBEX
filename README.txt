@@ -1,4 +1,4 @@
-## Emir naber kanka
-## okumadığını biliyorum ve bu beni üzüyor
-
+Yengeye selam söyle
 Bir iki mesaj bırakayım dedim ama bulabilir misin bilmiyorum
+
+Versiyonu değiştirme
