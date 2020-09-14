@@ -241,12 +241,11 @@ class Encoder:
         kwargs["max_depth"] = self.default_max_depth if self.default_max_depth != 0 else max_depth
         sort_keys = self.default_sort_keys if sort_keys is None else sort_keys
 
-
         if sort_keys:
             self.sort_keys(generator_func())
             # return self.sort_keys("".join([i for i in self.__dump_gen(**kwargs)]))
 
-        if kwargs["max_depth"] > 0:
+        if type(kwargs["max_depth"]) == str or kwargs["max_depth"] > 0:
             return lambda: self.__dump_gen(**kwargs)
         else:
             return "".join([i for i in self.__dump_gen(**kwargs)])

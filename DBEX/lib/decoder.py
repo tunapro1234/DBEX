@@ -368,7 +368,9 @@ class Decoder:
                             index = next_closing
 
                         else:
-                            raise DBEXDecodeError("Dictionary key değerinde mutable obje türü kullanılamaz", code=30)
+                            raise DBEXDecodeError(
+                                "Dictionary key değerinde mutable obje türü kullanılamaz",
+                                code=30)
 
                     elif len(key_val) == 1 and is_on_value:
                         # elif (ci-1) == lui: # and not len(key_val) == 2
@@ -431,7 +433,9 @@ class Decoder:
                             index = next_closing
 
                         else:
-                            raise DBEXDecodeError("Bu hatayı aldığına göre library artık kullanılmıyordur", code=-3)
+                            raise DBEXDecodeError(
+                                "Bu hatayı aldığına göre library artık kullanılmıyordur",
+                                code=-3)
 
                     # else:
                     #     # virgül koymadan yeni eleman eklenemiyor
@@ -446,12 +450,14 @@ class Decoder:
 
                 elif part == ":":
                     if is_on_value:
-                        raise DBEXDecodeError("Çok fazla iki nokta (:)", code=32)
+                        raise DBEXDecodeError("Çok fazla iki nokta (:)",
+                                              code=32)
                     is_on_value = True
 
                 elif part in ")]":
                     # Yanlış kapatma
-                    raise DBEXDecodeError("Yanlış parantez kapatma ( )] )", code=33)
+                    raise DBEXDecodeError("Yanlış parantez kapatma ( )] )",
+                                          code=33)
 
             # Aktif parça token değilse
             else:
@@ -533,15 +539,16 @@ class Decoder:
             # Boolean
             return True if part == "True" else False
         else:
-            raise DBEXDecodeError(f"Tanımlanmamış obje ya da keyword : [{part}]", code=40)
+            raise DBEXDecodeError(
+                f"Tanımlanmamış obje ya da keyword : [{part}]", code=40)
 
-    def __load(self, generator_func, max_depth=None, **kwargs):
+    def __load(self, generator_func, max_depth=None):
         """Loadların Lordu
 
         Args:
             generator_func (function): generator (tokenize_gen) döndüren fonksiyon
-            is_generator (str, optional): generator objesinin sonda birleştirip birleştirilmeyeceğini belirliyor. Defaults to "all".
-
+            max_depth
+            
         Raises:
             Exception: Bakmaya üşendim
 
@@ -613,7 +620,7 @@ class Decoder:
 
         generator_func = lambda: self.__tokenize_gen(
             self.read_gen(path, encoding=encoding))
-        return self.__load(generator_func, is_generator=False, **kwargs)
+        return self.__load(generator_func, max_depth=0, **kwargs)
 
     def loads(self, string, max_depth=None, **kwargs):
         """json.loads'un çakması ve generator olabiliyor
