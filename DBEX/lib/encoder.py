@@ -241,9 +241,35 @@ class Encoder:
     def dump(self, obj, file_path, **kwargs):
         self.write(file_path, self.encrypter_func(dumps(obj, **kwargs)))
 
-    def write(self, rv, *args, **kwargs):
-        return rv
-
+    def write(self, string, path=None, encoding=None):
+        path = self.default_path if path is None else path
+        encoding self.default_file_encoding if encoding is None else encoding
+        
+        with open(path, "w+") as file:
+            file.write(string)
+    
+    def write_gen(self, generator, path=None, encoding=None):
+        path = self.default_path if path is None else path
+        encoding self.default_file_encoding if encoding is None else encoding
+        
+        with open(path, "w+") as file:
+            file.write("")
+        
+        with open(path, "a") as file:
+            for i in generator:
+                file.write(i)
+    
+    def write_gen_safe(self, generator, path=None, encoding=None):
+        path = self.default_path if path is None else path
+        encoding self.default_file_encoding if encoding is None else encoding
+        
+        with open(path, "w+") as file:
+            file.write("")
+        
+        for i in generator:
+            with open(path, "a") as file:
+                file.write(i)
+            
 
 def test():
     return
