@@ -5,6 +5,14 @@ enc = Encoder()
 
 
 class TestEncoder(unittest.TestCase):
+    def test_indent(self):
+        tester = ["tunapro1234", 1234]
+        
+        result = enc.dumps(tester, indent=4)
+        correct_result = '[\n    "tunapro1234",\n    1234\n]'
+        
+        self.assertEqual(result, correct_result)
+    
     def test_convert(self):
         self.assertEqual(enc._Encoder__convert(None), "null")
         self.assertEqual(enc._Encoder__convert(1234), "1234")

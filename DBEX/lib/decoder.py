@@ -1,4 +1,5 @@
 from dbex.lib.encryption import decrypter
+import dbex.res.globalv as gvars
 import types, time
 
 
@@ -10,15 +11,25 @@ def version():
 __version__ = version()
 
 
+class DBEXDecodeError(ValueError):
+    # biraz çaldım gibi
+    def __init__(self, msg, code, pos="Unknown"):
+
+        code = (3 - len(str(code))) * '0' + str(code)
+        errmsg = f"{msg} (Code: {code}): (char {pos})"
+        ValueError.__init__(self, errmsg)
+
+        self.code = code
+        self.msg = msg
+        self.pos = pos
+
+    def __reduce__(self):
+        return self.__class__, (self.msg, self.doc, self.pos)
+
+
 class Decoder:
     default_tokenizers = "[{(\\,:\"')}]"
-
-    header_shape = {
-        "hash": [str],
-        "version": [int],
-        "database_shape": [list, dict],
-        "header_hash": [str]
-    }
+    header_shape = gvars.header_shape
 
     def __init__(self,
                  header=True,
@@ -93,6 +104,7 @@ class Decoder:
         Yields:
             str: her bir parça (ya token ya da element)
         """
+        errpos = 0
         tokenizers = self.default_tokenizers if tokenizers is None else tokenizers
         #   eğer tırnak işaret ile string değer
         # girilmeye başlanmışsa değerlerin kaydolacağı liste
@@ -158,7 +170,10 @@ class Decoder:
                         #     active_str.append("\\")
                     else:
                         # String dışında kullanmak yasak
-                        raise Exception("Syntax Error (\\)")
+                        raise DBEXDecodeError(
+                            "String dışında backslah kullanılamaz.",
+                            code=10,
+                            pos=errpos)
                         # Karakter karakter okuduğum için satır sonlarında (\n) umarım sıkıntı çıkarmaz
 
             else:
@@ -168,6 +183,8 @@ class Decoder:
 
                 elif part.strip() != "":
                     yield part
+
+            errpos += len(part)
 
     def __init_list_gen(self,
                         t_gen_func,
@@ -262,7 +279,9 @@ class Decoder:
                             index = next_closing
 
                         else:
-                            raise Exception("Unknown Error (Code 00-1)")
+                            raise DBEXDecodeError(
+                                "Teknik olarak bu yazıyı okuyor olman mümkün değil",
+                                code=-3)
 
                         # last used index -> lui
                         # current index -> ci
@@ -275,7 +294,8 @@ class Decoder:
 
                     else:
                         # virgül koymadan yeni eleman eklenemiyor
-                        raise Exception("Syntax Error (,) (Code 004)")
+                        raise DBEXDecodeError(
+                            "Virgül koymadan yeni eleman eklenemez", code=20)
 
                 elif part == closing:
                     # kapatıyorsan kapat
@@ -288,7 +308,8 @@ class Decoder:
 
                 elif part in err_closing:
                     # Yanlış kapatma
-                    raise Exception("Syntax Error (]}) (Code 005)")
+                    raise DBEXDecodeError("Yanlış parantez kapatma ( ]} )",
+                                          code=21)
                     # Zaten kesin daha önce syntax error döndürür
 
             # Aktif parça token değilse
@@ -303,7 +324,8 @@ class Decoder:
                     # Kullanıldığını belirtme filan
                 else:
                     # lui ile ci farklı olmazsa virgül koyulmadığını anlıyor
-                    raise Exception("Syntax Error (,) (Code 004)")
+                    raise DBEXDecodeError(
+                        "Virgül koymadan yeni eleman eklenemez", code=22)
 
     def __init_dict_gen(self, t_gen_func, max_depth=None, gen_lvl=1):
         """[ görüldüğünde çağırılan fonksiyon
@@ -346,7 +368,7 @@ class Decoder:
                             index = next_closing
 
                         else:
-                            raise Exception("Syntax Error {} (Code 011)")
+                            raise DBEXDecodeError("Dictionary key değerinde mutable obje türü kullanılamaz", code=30)
 
                     elif len(key_val) == 1 and is_on_value:
                         # elif (ci-1) == lui: # and not len(key_val) == 2
@@ -409,7 +431,7 @@ class Decoder:
                             index = next_closing
 
                         else:
-                            raise Exception("Unknown Error (Code 00-1)")
+                            raise DBEXDecodeError("Bu hatayı aldığına göre library artık kullanılmıyordur", code=-3)
 
                     # else:
                     #     # virgül koymadan yeni eleman eklenemiyor
@@ -424,12 +446,12 @@ class Decoder:
 
                 elif part == ":":
                     if is_on_value:
-                        raise Exception("Syntax Error (::) (Code 010)")
+                        raise DBEXDecodeError("Çok fazla iki nokta (:)", code=32)
                     is_on_value = True
 
                 elif part in ")]":
                     # Yanlış kapatma
-                    raise Exception("Syntax Error {)]} (Code 005)")
+                    raise DBEXDecodeError("Yanlış parantez kapatma ( )] )", code=33)
 
             # Aktif parça token değilse
             else:
@@ -443,7 +465,7 @@ class Decoder:
                     yield (key_val := (key_val[0], part))
 
                 else:
-                    raise Exception("Syntax Error (::) (Code 010)")
+                    raise DBEXDecodeError("Çok fazla iki nokta (:)", code=34)
 
     def __find_next_closing(self, gen, index, type="[]"):
         """sonraki parantez kapatma şeyini buluyor
@@ -511,7 +533,7 @@ class Decoder:
             # Boolean
             return True if part == "True" else False
         else:
-            raise Exception(f"Syntax Error [{part}] is not defined.")
+            raise DBEXDecodeError(f"Tanımlanmamış obje ya da keyword : [{part}]", code=40)
 
     def __load(self, generator_func, max_depth=None, **kwargs):
         """Loadların Lordu
@@ -572,7 +594,7 @@ class Decoder:
             except StopIteration:
                 return self.__convert(first_element)
             else:
-                raise Exception("Syntax Error (Code 007)")
+                raise DBEXDecodeError("Verilen dosya ya da string içinde 1'den fazla obje olamaz", code=50)
             # gen_next = "".join([i for i in generator])
             # part = str(first_element) + "".join(gen_next)
 
@@ -766,15 +788,3 @@ class Decoder:
 
     def reset_file(self, path, shape):
         pass
-
-
-def _timer(func):
-    #   ilk baştaki mal tokenizing algoritmamda sorting
-    # metodunu değiştirmenin ne kadar etkileyecğini görmek içindi
-    def wrapper(*args, **kwargs):
-        # Güzel özellik
-        start = time.time()
-        func(*args, **kwargs)
-        print(time.time() - start)
-
-    return wrapper

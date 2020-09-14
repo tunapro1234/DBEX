@@ -1,4 +1,5 @@
 from dbex.lib.encryption import encrypter as defaultEncrypter_func
+import dbex.res.globalv as gvars
 
 
 def version():
@@ -11,13 +12,7 @@ __version__ = version()
 
 class Encoder:
     encrypter_func = defaultEncrypter_func
-
-    header_shape = {
-        "hash": [str],
-        "version": [int],
-        "database_shape": [list, dict],
-        "header_hash": [str]
-    }
+    header_shape = gvars.header_shape
 
     def __init__(self,
                  header=False,

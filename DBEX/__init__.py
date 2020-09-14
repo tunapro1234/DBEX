@@ -6,13 +6,10 @@ from dbex.lib.decoder import Decoder
 
 "                       TO DO:                       "
 """######################################################
-# Decoder için gen_lvl 
-# header doysasını gizleme
-# Encoder testlerini arttır
 # Decoder ve Encoderda sort_keys
 # Decoder ve Encoder için Exception classları
-# Decoder ve Encoder için backslah geliştirmesi
+# Decoder ve Encoder için backslash geliştirmesi
 # Biraz daha açıklama koymam çok hoş olabilirdi
-# Encoder kısmı Decoder koduna göre çok düzensiz kaçıyor 
+# Encoder kısmı Decoder koduna göre çok düzensiz kaçıyor - yoo (gelecekteki tuna)
 
 ######################################################"""

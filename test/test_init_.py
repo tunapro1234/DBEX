@@ -53,11 +53,6 @@ enc = Encoder()
 class TestMainPackage(unittest.TestCase):
     test_file = "test_init.json"
 
-    def test_loads(self):
-        result = dec.loads("[]")
-        correct_result = []
-        self.assertEqual(result, correct_result)
-
     def test_load(self):
         correct_result = [12, 34]
         with open(self.test_file, "w+") as file:
@@ -68,6 +63,11 @@ class TestMainPackage(unittest.TestCase):
 
         os.remove(self.test_file)
 
+    def test_loads(self):
+        result = dec.loads("[]")
+        correct_result = []
+        self.assertEqual(result, correct_result)
+
     def test_loader(self):
         correct_result = ["tuna", "pro", "12", "34"]
         with open(self.test_file, "w+") as file:
@@ -77,3 +77,31 @@ class TestMainPackage(unittest.TestCase):
         self.assertEqual(result, correct_result)
 
         os.remove(self.test_file)
+
+    ##########################################################
+
+    # def test_dump(self):
+    #     # enc.dump(self.test_file)
+    #     correct_result = [12, 34]
+    #     with open(self.test_file, "w+") as file:
+    #         file.write(str(correct_result))
+
+    #     result = dec.load(self.test_file)
+    #     self.assertEqual(result, correct_result)
+
+    #     os.remove(self.test_file)
+
+    # def test_dumps(self):
+    #     result = dec.loads("[]")
+    #     correct_result = []
+    #     self.assertEqual(result, correct_result)
+
+    # def test_dumper(self):
+    #     correct_result = ["tuna", "pro", "12", "34"]
+    #     with open(self.test_file, "w+") as file:
+    #         file.write(str(correct_result))
+
+    #     result = gen_normalize(dec.loader(self.test_file))
+    #     self.assertEqual(result, correct_result)
+
+    #     os.remove(self.test_file)
