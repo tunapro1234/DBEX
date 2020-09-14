@@ -15,6 +15,15 @@ class TestEncoder(unittest.TestCase):
         self.assertEqual(enc._Encoder__convert("Tunapro1234"), '"Tunapro1234"')
         self.assertEqual(enc._Encoder__convert('Tunapro1234'), '"Tunapro1234"')
 
+    def test_json_comp(self):
+        import json
+        tester = [True, False, None, float("Infinity"), float("-Infinity")]
+
+        result = enc.dumps(tester)
+        correct_result = json.dumps(tester)
+
+        self.assertEqual(result, correct_result)
+
     def test_dumps(self):
         tester = ["tunapro"]
         correct_result = '["tunapro"]'
