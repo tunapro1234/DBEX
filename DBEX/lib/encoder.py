@@ -235,21 +235,21 @@ class Encoder:
             else:
                 return "".join([i for i in self.__dump_gen(**kwargs)])
 
-    def dumper(self, obj, path=None, max_depth="all", sort_keys=None, **kwargs):
-        
-        kwargs["element"] = obj
+    def dumper(self, generator_func, path=None, max_depth="all", sort_keys=None, **kwargs):
+
+        kwargs["element"] = generator_func
         kwargs["max_depth"] = self.default_max_depth if self.default_max_depth != 0 else max_depth
         sort_keys = self.default_sort_keys if sort_keys is None else sort_keys
 
+
         if sort_keys:
-            return self.sort_keys("".join(
-                                            [i for i in self.__dump_gen(**kwargs)]
-                                         ))
+            self.sort_keys(generator_func())
+            # return self.sort_keys("".join([i for i in self.__dump_gen(**kwargs)]))
+
+        if kwargs["max_depth"] > 0:
+            return lambda: self.__dump_gen(**kwargs)
         else:
-            if kwargs["max_depth"] > 0:
-                return lambda: self.__dump_gen(**kwargs)
-            else:
-                return "".join([i for i in self.__dump_gen(**kwargs)])
+            return "".join([i for i in self.__dump_gen(**kwargs)])
 
     def write(self, string, path=None, encoding=None):
         path = self.default_path if path is None else path
