@@ -19,20 +19,21 @@ class Decoder:
         "header_hash": [str]
     }
 
-    def __init__(
-        self,
-        default_path=None,
-        default_file_encoding=None,
-        encryption=None,
-        encryption_pass=None,
-        header=None,
-        default_header_path=None,
-        changed_file_action=None,
-        database_shape=None,
-        database_form_gen_lvl=None,
-    ):
+
+    def __init__(self,
+                 default_path=None,
+                 default_file_encoding=None,
+                 encryption=None,
+                 encryption_pass=None,
+                 header=None,
+                 default_mex_gen_lvl=None,
+                 default_header_path=None,
+                 changed_file_action=None,
+                 database_shape=None,
+                 database_form_gen_lvl=None):
         self.default_header_path = default_header_path
         self.changed_file_action = changed_file_action
+        self.default_max_gen_lvl = default_mex_gen_lvl
         self.default_encoding = default_file_encoding
         self.encryption_pass = encryption_pass
         self.database_form = database_shape
@@ -593,7 +594,7 @@ class Decoder:
                            is_generator=(1 if gen_lvl is not None else 0),
                            **kwargs)
 
-    def gen_normalizer(self, gen_func):
+    def gen_normalizer(self, gen_func, max_gen_lvl, gen_lvl):
         """__load fonksiyonun generator fonksiyonunu objeye dönüştüren fonksiyon
 
         Args:
