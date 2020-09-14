@@ -24,17 +24,19 @@ class Decoder:
                  header=True,
                  encryption=None,
                  default_path=None,
+                 default_max_depth=0,
                  database_shape=None,
+                 default_sort_keys=0,
                  encryption_pass=None,
-                 default_max_gen_lvl=0,
                  default_header_path=None,
-                 changed_file_action=None,
+                 changed_file_action=0,
                  default_file_encoding="utf-8"):
         self.default_file_encoding = default_file_encoding
-        self.default_header_path = default_header_path
         self.changed_file_action = changed_file_action
-        self.default_max_gen_lvl = default_max_gen_lvl
+        self.default_header_path = default_header_path
+        self.default_sort_keys = default_sort_keys
         self.encryption_pass = encryption_pass
+        self.default_max_depth = default_max_depth
         self.database_shape = database_shape
         self.default_path = default_path
         self.encryption = encryption
@@ -167,7 +169,11 @@ class Decoder:
                 elif part.strip() != "":
                     yield part
 
-    def __init_list_gen(self, t_gen_func, tuple_mode=False):
+    def __init_list_gen(self,
+                        t_gen_func,
+                        tuple_mode=False,
+                        max_depth=None,
+                        gen_lvl=1):
         """[ görüldüğünde çağırılan fonksiyon
 
         Args:
@@ -180,6 +186,9 @@ class Decoder:
         Yields:
             Her tipten şey döndürüyor. Ama parantez açma tarzı bir şey çıkarsa generator döndüren fonksiyon döndürüyor 
         """
+        # gereksiz ama koymakta fayda var
+        max_depth = self.default_max_depth if max_depth is None else max_depth
+
         t_gen = t_gen_func()
         # son kullanılan index
         lui = -1
@@ -209,9 +218,15 @@ class Decoder:
 
                             def list_gen():
                                 return (i for i in self.__init_list_gen(
-                                    new_gen_func))
+                                    new_gen_func,
+                                    max_depth=max_depth,
+                                    gen_lvl=gen_lvl + 1))
 
-                            yield list_gen
+                            if max_depth == "all" or gen_lvl < max_depth:
+                                yield list_gen
+                            else:
+                                yield self.gen_normalizer(list_gen)
+
                             index = next_closing
 
                         elif part == "{":
@@ -222,9 +237,15 @@ class Decoder:
 
                             def dict_gen():
                                 return (i for i in self.__init_dict_gen(
-                                    new_gen_func))
+                                    new_gen_func,
+                                    max_depth=max_depth,
+                                    gen_lvl=gen_lvl + 1))
 
-                            yield dict_gen
+                            if max_depth == "all" or gen_lvl < max_depth:
+                                yield dict_gen
+                            else:
+                                yield self.gen_normalizer(dict_gen)
+
                             index = next_closing
 
                         elif part == "(":
@@ -235,7 +256,7 @@ class Decoder:
 
                             def tuple_gen():
                                 return (i for i in self.__init_list_gen(
-                                    new_gen_func, tuple_mode=1))
+                                    new_gen_func, tuple_mode=1, max_depth=0))
 
                             yield tuple(self.gen_normalizer(tuple_gen))
                             index = next_closing
@@ -284,7 +305,7 @@ class Decoder:
                     # lui ile ci farklı olmazsa virgül koyulmadığını anlıyor
                     raise Exception("Syntax Error (,) (Code 004)")
 
-    def __init_dict_gen(self, t_gen_func):
+    def __init_dict_gen(self, t_gen_func, max_depth=None, gen_lvl=1):
         """[ görüldüğünde çağırılan fonksiyon
 
         Args:
@@ -296,6 +317,9 @@ class Decoder:
         Yields:
             Her tipten şey döndürüyor. Ama parantez açma tarzı bir şey çıkarsa generator döndüren fonksiyon döndürüyor.
         """
+        # gereksiz ama koymakta fayda var
+        max_depth = self.default_max_depth if max_depth is None else max_depth
+
         t_gen = t_gen_func()
         key_val = ()
         is_on_value = False
@@ -335,9 +359,17 @@ class Decoder:
 
                             def list_gen():
                                 return (i for i in self.__init_list_gen(
-                                    new_gen_func))
+                                    new_gen_func,
+                                    max_depth=max_depth,
+                                    gen_lvl=gen_lvl + 1))
 
-                            yield (key_val := (key_val[0], list_gen))
+                            if max_depth == "all" or gen_lvl < max_depth:
+                                yield (key_val := (key_val[0], list_gen))
+                            else:
+                                yield (key_val :=
+                                       (key_val[0],
+                                        self.gen_normalizer(list_gen)))
+
                             index = next_closing
 
                         elif part == "{":
@@ -348,9 +380,17 @@ class Decoder:
 
                             def dict_gen():
                                 return (i for i in self.__init_dict_gen(
-                                    new_gen_func))
+                                    new_gen_func,
+                                    max_depth=max_depth,
+                                    gen_lvl=gen_lvl + 1))
 
-                            yield (key_val := (key_val[0], dict_gen))
+                            if max_depth == "all" or gen_lvl < max_depth:
+                                yield (key_val := (key_val[0], dict_gen))
+                            else:
+                                yield (key_val :=
+                                       (key_val[0],
+                                        self.gen_normalizer(dict_gen)))
+
                             index = next_closing
 
                         elif part == "(":
@@ -361,7 +401,7 @@ class Decoder:
 
                             def tuple_gen():
                                 return (i for i in self.__init_list_gen(
-                                    new_gen_func, tuple_mode=1))
+                                    new_gen_func, tuple_mode=1, max_depth=0))
 
                             yield (key_val :=
                                    (key_val[0],
@@ -473,7 +513,7 @@ class Decoder:
         else:
             raise Exception(f"Syntax Error [{part}] is not defined.")
 
-    def __load(self, generator_func, *args, is_generator="all", **kwargs):
+    def __load(self, generator_func, max_depth=None, **kwargs):
         """Loadların Lordu
 
         Args:
@@ -487,8 +527,11 @@ class Decoder:
             is_generator false ise objenin kendisi
             true ise generator döndüren fonksiyon
         """
-        generator_func2 = lambda: (j for i, j in enumerate(generator_func())
-                                   if i != 0)
+
+        max_depth = self.default_max_depth if max_depth is None else max_depth
+
+        # yapf: disable
+        generator_func2 = lambda: (j for i, j in enumerate(generator_func()) if i != 0)
         generator = generator_func()
         first_element = next(generator)
 
@@ -497,9 +540,9 @@ class Decoder:
         if first_element == "[":
 
             def list_gen():
-                return (i for i in self.__init_list_gen(generator_func2))
+                return (i for i in self.__init_list_gen(generator_func2, max_depth=max_depth))
 
-            if is_generator:
+            if max_depth == "all" or max_depth > 0:
                 return list_gen
             else:
                 return self.gen_normalizer(list_gen)
@@ -507,19 +550,19 @@ class Decoder:
         elif first_element == "{":
 
             def dict_gen():
-                return (i for i in self.__init_dict_gen(generator_func2))
+                return (i for i in self.__init_dict_gen(generator_func2, max_depth=max_depth))
 
-            if is_generator:
-                return dict_gen(generator_func2)
-            else:
+            if max_depth == "all" or max_depth > 0:
                 return self.gen_normalizer(dict_gen)
+            else:
+                return dict_gen(generator_func2)
 
         elif first_element == "(":
-            return tuple(
-                # yapf: disable
-                self.gen_normalizer(
-                    (i
-                     for i in self.__init_list_gen(generator, tuple_mode=1))))
+
+            def tuple_gen():
+                return (i for i in self.__init_list_gen(generator, tuple_mode=1, max_depth=0))
+
+            return tuple(self.gen_normalizer(tuple_gen))
 
         else:
             #   eğer direkt olarak sadece 1 değer
@@ -550,7 +593,7 @@ class Decoder:
             self.read_gen(path, encoding=encoding))
         return self.__load(generator_func, is_generator=False, **kwargs)
 
-    def loads(self, string, *args, gen_lvl=None, **kwargs):
+    def loads(self, string, max_depth=None, **kwargs):
         """json.loads'un çakması ve generator olabiliyor
 
         Args:
@@ -561,14 +604,13 @@ class Decoder:
             Eğer is_generator True verilirse generator döndüren fonksiyon döndürüyor,
             değilse direkt olarak objenin kendisini döndürüyor
         """
+        # max depth kontrolü __loadda yapılıyor
         generator_func = lambda: self.__tokenize_gen(string)
         return self.__load(generator_func,
-                           *args,
-                           gen_lvl=gen_lvl,
-                           is_generator=(1 if gen_lvl is not None else 0),
+                           max_depth=max_depth,
                            **kwargs)
 
-    def loader(self, path=None, *args, encoding=None, gen_lvl="all", **kwargs):
+    def loader(self, path=None, encoding=None, max_depth="all", **kwargs):
         """json.load'un generator hali
 
         Args:
@@ -582,18 +624,18 @@ class Decoder:
         Returns:
             (Dosyada yazanları döndüren generator) objesi döndüren bir fonksiyon
         """
+        max_depth = self.default_max_depth if max_depth is None else max_depth
+
         path = self.default_path if path is None else path
         encoding = self.default_file_encoding if encoding is None else encoding
 
         generator_func = lambda: self.__tokenize_gen(
             self.read_gen(path, encoding=encoding))
         return self.__load(generator_func,
-                           *args,
-                           gen_lvl=gen_lvl,
-                           is_generator=(1 if gen_lvl is not None else 0),
+                           max_depth=max_depth,
                            **kwargs)
 
-    def gen_normalizer(self, gen_func, max_gen_lvl, gen_lvl):
+    def gen_normalizer(self, gen_func):
         """__load fonksiyonun generator fonksiyonunu objeye dönüştüren fonksiyon
 
         Args:
@@ -602,6 +644,7 @@ class Decoder:
         Returns:
             objenin kendisi
         """
+
         gen = gen_func()
         if gen_func.__name__ == "dict_gen":
             final = {}

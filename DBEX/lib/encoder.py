@@ -24,12 +24,12 @@ class Encoder:
                  encryption=None,
                  default_indent=0,
                  default_path=None,
+                 default_max_depth=0,
                  database_shape=None,
                  default_sort_keys=0,
                  encryption_pass=None,
-                 default_max_lvl=0,
                  default_header_path=None,
-                 changed_file_action=None,
+                 changed_file_action=0,
                  default_seperators=(", ", ": "),
                  default_file_encoding="utf-8"):
         self.default_file_encoding = default_file_encoding
@@ -37,7 +37,7 @@ class Encoder:
         self.changed_file_action = changed_file_action
         self.default_seperators = default_seperators
         self.default_sort_keys = default_sort_keys
-        self.default_max_lvl = default_max_lvl
+        self.default_max_depth = default_max_depth
         self.encryption_pass = encryption_pass
         self.default_indent = default_indent
         self.database_shape = database_shape
@@ -48,12 +48,12 @@ class Encoder:
     def __dump_gen_(self,
                     obj,
                     indent="",
-                    max_lvl=None,
+                    max_depth=None,
                     seperators=None,
                     gen_lvl=1):
 
         # yukarda bunun kontrolünü yapmıştık
-        if None in [max_lvl, seperators, indent, gen_lvl]:
+        if None in [max_depth, seperators, indent, gen_lvl]:
             raise Exception("Input cannot be None")
 
         if type(seperators) != tuple:  # or len(seperators) != 2
@@ -65,7 +65,7 @@ class Encoder:
         kwargs = {
             "element": None,
             "indent": indent,
-            "max_lvl": max_lvl,
+            "max_depth": max_depth,
             "seperators": seperators,
             "gen_lvl": gen_lvl + 1
         }
@@ -150,12 +150,12 @@ class Encoder:
     def __dump_gen(self,
                    element,
                    indent=None,
-                   max_lvl=None,
+                   max_depth=None,
                    seperators=None,
                    gen_lvl=0):
         # default şeylerin ayarlanması
         indent = self.default_indent if indent is None else indent
-        max_lvl = self.default_max_lvl if max_lvl is None else max_lvl
+        max_depth = self.default_max_depth if max_depth is None else max_depth
         seperators = self.default_seperators if seperators is None else seperators
         ###
 
@@ -164,13 +164,13 @@ class Encoder:
         kwargs = {
             "obj":element,
             "indent":indent,
-            "max_lvl":max_lvl,
+            "max_depth":max_depth,
             "seperators":seperators,
             "gen_lvl":gen_lvl
         }
 
         if type(element) in [tuple, list, dict]:
-            if gen_lvl < max_lvl:
+            if gen_lvl < max_depth or max_depth == "all":
                 # maximum generator derinliği aşılmadıysa yield
                 for i in self.__dump_gen_(**kwargs):
                     yield i
@@ -207,14 +207,14 @@ class Encoder:
     def sort_keys(self, rv, *args, **kwargs):
         return rv
 
-    def dumps(self, obj, sort_keys=None, max_lvl=None, **kwargs):
+    def dumps(self, obj, sort_keys=None, max_depth=None, **kwargs):
         """ json.dumpsın çakması + generator özelliği
         Eğer (obje dışında) herhangi bir değere None verilirse Encoder objesinde verilen default değerini alır.
 
         Args:
             obj (any): Encode edilecek obje
             indent (int, optional): Düzen için filan kaç boşluk bırakılcak gibi bir şey 4 yap baya güzel oluyor. Defaults to 0.
-            max_lvl (int, str, optional): Generatorların ne kadar derine ineceği. Defaults to 0.
+            max_depth (int, str, optional): Generatorların ne kadar derine ineceği. Defaults to 0.
             seperators ((str [virgül], str [iki nokta]), optional): [description]. Defaults to (", ", ": ").
             sort_keys (int, optional): objenin içindeki dictlerin keylere göre sıralanıp sıralanmayacağı (Aktif edilirse generator özelliği kalkıyor). Defaults to 0.
 
@@ -223,8 +223,8 @@ class Encoder:
             kayraaaaaaa
         """
 
-        kwargs["obj"] = obj
-        kwargs["max_lvl"] = self.default_max_lvl if max_lvl is None else max_lvl
+        kwargs["element"] = obj
+        kwargs["max_depth"] = self.default_max_depth if max_depth is None else max_depth
         sort_keys = self.default_sort_keys if sort_keys is None else sort_keys
 
         if sort_keys:
@@ -232,7 +232,10 @@ class Encoder:
                                             [i for i in self.__dump_gen(**kwargs)]
                                          ))
         else:
-            return lambda: self.__dump_gen(**kwargs)
+            if kwargs["max_depth"] > 0:
+                return lambda: self.__dump_gen(**kwargs)
+            else:
+                return "".join([i for i in self.__dump_gen(**kwargs)])
 
 
     def dump(self, obj, file_path, **kwargs):

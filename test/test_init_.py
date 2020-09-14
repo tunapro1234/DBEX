@@ -4,13 +4,13 @@ import unittest
 import os
 
 
-def _gen_normalize(gen_func, *args, **kwargs):
+def gen_normalize(gen_func, *args, **kwargs):
     gen = gen_func()
     if gen_func.__name__ == "dict_gen":
         final = {}
         for key, value in gen:
             if callable(value):
-                final[key] = _gen_normalize(value)
+                final[key] = gen_normalize(value)
             else:
                 final[key] = value
 
@@ -18,7 +18,7 @@ def _gen_normalize(gen_func, *args, **kwargs):
         final = []
         for value in gen:
             if callable(value):
-                final.append(_gen_normalize(value))
+                final.append(gen_normalize(value))
             else:
                 final.append(value)
 
@@ -31,7 +31,7 @@ def _print_gen(gen_func, *args, **kwargs):
         final = {}
         for key, value in gen:
             if callable(value):
-                final[key] = _gen_normalize(value)
+                final[key] = gen_normalize(value)
             else:
                 final[key] = value
 
@@ -39,7 +39,7 @@ def _print_gen(gen_func, *args, **kwargs):
         final = []
         for value in gen:
             if callable(value):
-                final.append(_gen_normalize(value))
+                final.append(gen_normalize(value))
             else:
                 final.append(value)
 
@@ -73,7 +73,7 @@ class TestMainPackage(unittest.TestCase):
         with open(self.test_file, "w+") as file:
             file.write(str(correct_result))
 
-        result = _gen_normalize(dec.loader(self.test_file))
+        result = gen_normalize(dec.loader(self.test_file))
         self.assertEqual(result, correct_result)
 
         os.remove(self.test_file)

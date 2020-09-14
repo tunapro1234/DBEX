@@ -118,7 +118,7 @@ class TestDecoder(unittest.TestCase):
         correct_result = ["tunapro", ((), ), [[]], [[0]]]
         generator_func = lambda: (i for i in tester)
 
-        result = dec._Decoder__load(generator_func, is_generator=0)
+        result = dec._Decoder__load(generator_func, max_depth=0)
         self.assertEqual(result, correct_result)
 
     def test_load(self):
