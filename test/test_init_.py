@@ -1,3 +1,5 @@
+from dbex.test.new_encoder import Encoder as newEncoder
+
 from dbex.__init__ import Decoder  # sonunda
 from dbex.__init__ import Encoder
 import unittest
@@ -47,7 +49,7 @@ def _print_gen(gen_func, *args, **kwargs):
 
 
 dec = Decoder()
-enc = Encoder()
+enc = newEncoder()
 
 
 class TestMainPackage(unittest.TestCase):
@@ -81,13 +83,14 @@ class TestMainPackage(unittest.TestCase):
     ##########################################################
 
     def test_dump(self):
+        import json
         tester = ["tunapro1234"]
         enc.dump(tester, self.test_file, indent=0)
-        correct_result = str(tester)
-        
+        correct_result = json.dumps(tester)
+
         with open(self.test_file, "r") as file:
             result = file.read()
-        
+
         self.assertEqual(result, correct_result)
 
         os.remove(self.test_file)
@@ -99,13 +102,14 @@ class TestMainPackage(unittest.TestCase):
         self.assertEqual(result, correct_result)
 
     def test_dumper(self):
+        import json
         tester = ["tuna", "pro", "12", "34"]
         enc.dumper(tester, path=self.test_file, indent=0)
-        correct_result = str(tester)
-        
+        correct_result = json.dumps(tester)
+
         with open(self.test_file, "r") as file:
             result = file.read()
-            
+
         self.assertEqual(result, correct_result)
 
         os.remove(self.test_file)
