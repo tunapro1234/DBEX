@@ -80,28 +80,32 @@ class TestMainPackage(unittest.TestCase):
 
     ##########################################################
 
-    # def test_dump(self):
-    #     # enc.dump(self.test_file)
-    #     correct_result = [12, 34]
-    #     with open(self.test_file, "w+") as file:
-    #         file.write(str(correct_result))
+    def test_dump(self):
+        tester = ["tunapro1234"]
+        enc.dump(tester, self.test_file, indent=0)
+        correct_result = str(tester)
+        
+        with open(self.test_file, "r") as file:
+            result = file.read()
+        
+        self.assertEqual(result, correct_result)
 
-    #     result = dec.load(self.test_file)
-    #     self.assertEqual(result, correct_result)
+        os.remove(self.test_file)
 
-    #     os.remove(self.test_file)
+    def test_dumps(self):
+        tester = []
+        result = enc.dumps(tester)
+        correct_result = str(tester)
+        self.assertEqual(result, correct_result)
 
-    # def test_dumps(self):
-    #     result = dec.loads("[]")
-    #     correct_result = []
-    #     self.assertEqual(result, correct_result)
+    def test_dumper(self):
+        tester = ["tuna", "pro", "12", "34"]
+        enc.dumper(tester, path=self.test_file, indent=0)
+        correct_result = str(tester)
+        
+        with open(self.test_file, "r") as file:
+            result = file.read()
+            
+        self.assertEqual(result, correct_result)
 
-    # def test_dumper(self):
-    #     correct_result = ["tuna", "pro", "12", "34"]
-    #     with open(self.test_file, "w+") as file:
-    #         file.write(str(correct_result))
-
-    #     result = gen_normalize(dec.loader(self.test_file))
-    #     self.assertEqual(result, correct_result)
-
-    #     os.remove(self.test_file)
+        os.remove(self.test_file)

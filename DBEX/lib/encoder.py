@@ -202,7 +202,10 @@ class Encoder:
     def sort_keys(self, rv, *args, **kwargs):
         return rv
 
-    def dumps(self, obj, sort_keys=None, max_depth=None, **kwargs):
+    def dump(self, obj, file_path, **kwargs):
+        self.write(file_path, self.encrypter_func(dumps(obj, **kwargs)))
+
+    def dumps(self, obj, max_depth=None, sort_keys=None, **kwargs):
         """ json.dumpsın çakması + generator özelliği
         Eğer (obje dışında) herhangi bir değere None verilirse Encoder objesinde verilen default değerini alır.
 
@@ -232,9 +235,21 @@ class Encoder:
             else:
                 return "".join([i for i in self.__dump_gen(**kwargs)])
 
+    def dumper(self, obj, path=None, max_depth="all", sort_keys=None, **kwargs):
+        
+        kwargs["element"] = obj
+        kwargs["max_depth"] = self.default_max_depth if self.default_max_depth != 0 else max_depth
+        sort_keys = self.default_sort_keys if sort_keys is None else sort_keys
 
-    def dump(self, obj, file_path, **kwargs):
-        self.write(file_path, self.encrypter_func(dumps(obj, **kwargs)))
+        if sort_keys:
+            return self.sort_keys("".join(
+                                            [i for i in self.__dump_gen(**kwargs)]
+                                         ))
+        else:
+            if kwargs["max_depth"] > 0:
+                return lambda: self.__dump_gen(**kwargs)
+            else:
+                return "".join([i for i in self.__dump_gen(**kwargs)])
 
     def write(self, string, path=None, encoding=None):
         path = self.default_path if path is None else path
