@@ -125,7 +125,7 @@ class TestDecoder(unittest.TestCase):
         tester = "['tunapro', (()), [[]], [[0, '[\\]']], None]"
         correct_result = ["tunapro", ((), ), [[]], [[0, "[\\]"]], None]
 
-        path = "dbex/res/test.dbex"
+        path = "dbex/test/test.dbex"
         with open(path, "w+") as file:
             file.write(tester)
 
@@ -146,7 +146,7 @@ class TestDecoder(unittest.TestCase):
         self.assertEqual(result, correct_result)
 
     def test_read_gen(self):
-        path = "dbex/res/test.dbex"
+        path = "dbex/test/test.dbex"
         with open(path, "w+", encoding="utf-8") as file:
             correct_result = file.read()
 
