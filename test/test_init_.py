@@ -1,5 +1,3 @@
-from dbex.test.new_encoder import Encoder as newEncoder
-
 from dbex.__init__ import Decoder  # sonunda
 from dbex.__init__ import Encoder
 import unittest
@@ -49,7 +47,7 @@ def _print_gen(gen_func, *args, **kwargs):
 
 
 dec = Decoder()
-enc = newEncoder()
+enc = Encoder()
 
 
 class TestMainPackage(unittest.TestCase):
