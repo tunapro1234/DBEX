@@ -12,6 +12,7 @@ __version__ = version()
 
 class Decoder:
     default_tokenizers = "[{(\\,:\"')}]"
+
     header_shape = {
         "hash": [str],
         "version": [int],
@@ -19,24 +20,22 @@ class Decoder:
         "header_hash": [str]
     }
 
-
     def __init__(self,
-                 default_path=None,
-                 default_file_encoding=None,
+                 header=True,
                  encryption=None,
+                 default_path=None,
+                 database_shape=None,
                  encryption_pass=None,
-                 header=None,
-                 default_mex_gen_lvl=None,
+                 default_max_gen_lvl=0,
                  default_header_path=None,
                  changed_file_action=None,
-                 database_shape=None,
-                 database_form_gen_lvl=None):
+                 default_file_encoding="utf-8"):
+        self.default_file_encoding = default_file_encoding
         self.default_header_path = default_header_path
         self.changed_file_action = changed_file_action
-        self.default_max_gen_lvl = default_mex_gen_lvl
-        self.default_encoding = default_file_encoding
+        self.default_max_gen_lvl = default_max_gen_lvl
         self.encryption_pass = encryption_pass
-        self.database_form = database_shape
+        self.database_shape = database_shape
         self.default_path = default_path
         self.encryption = encryption
         self.header = header
@@ -534,7 +533,7 @@ class Decoder:
             # gen_next = "".join([i for i in generator])
             # part = str(first_element) + "".join(gen_next)
 
-    def load(self, path=None, *args, encoding=None, **kwargs):
+    def load(self, path=None, encoding=None, **kwargs):
         """json.load'un çakması
 
         Args:
@@ -545,11 +544,11 @@ class Decoder:
             Dosyada yazılı olan obje
         """
         path = self.default_path if path is None else path
-        encoding = self.default_encoding if encoding is None else encoding
+        encoding = self.default_file_encoding if encoding is None else encoding
 
         generator_func = lambda: self.__tokenize_gen(
             self.read_gen(path, encoding=encoding))
-        return self.__load(generator_func, *args, is_generator=False, **kwargs)
+        return self.__load(generator_func, is_generator=False, **kwargs)
 
     def loads(self, string, *args, gen_lvl=None, **kwargs):
         """json.loads'un çakması ve generator olabiliyor
@@ -584,7 +583,7 @@ class Decoder:
             (Dosyada yazanları döndüren generator) objesi döndüren bir fonksiyon
         """
         path = self.default_path if path is None else path
-        encoding = self.default_encoding if encoding is None else encoding
+        encoding = self.default_file_encoding if encoding is None else encoding
 
         generator_func = lambda: self.__tokenize_gen(
             self.read_gen(path, encoding=encoding))
@@ -633,7 +632,7 @@ class Decoder:
             str: her bir karakter
         """
         path = self.default_path if path is None else path
-        encoding = self.default_encoding if encoding is None else encoding
+        encoding = self.default_file_encoding if encoding is None else encoding
 
         #   Dosyanın sonuna gelmediğimiz
         # sürece sonraki elemanı okuyup yolla
@@ -648,7 +647,7 @@ class Decoder:
         # yeteri kadar verimli olacağını düşünmüyorum
 
         path = self.default_path if path is None else path
-        encoding = self.default_encoding if encoding is None else encoding
+        encoding = self.default_file_encoding if encoding is None else encoding
 
         index = -1
         char = True
@@ -668,7 +667,7 @@ class Decoder:
             okunan dosyanın içinde yazanlar
         """
         path = self.default_path if path is None else path
-        encoding = self.default_encoding if encoding is None else encoding
+        encoding = self.default_file_encoding if encoding is None else encoding
 
         # Hepsini oku yolla
         with open(path, encoding=encoding) as f:

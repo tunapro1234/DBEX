@@ -11,6 +11,7 @@ __version__ = version()
 
 class Encoder:
     encrypter_func = defaultEncrypter_func
+
     header_shape = {
         "hash": [str],
         "version": [int],
@@ -19,37 +20,55 @@ class Encoder:
     }
 
     def __init__(self,
-                 default_path=None,
-                 default_file_encoding=None,
+                 header=False,
                  encryption=None,
+                 default_indent=0,
+                 default_path=None,
+                 database_shape=None,
+                 default_sort_keys=0,
                  encryption_pass=None,
-                 header=None,
-                 default_mex_gen_lvl=None,
+                 default_max_lvl=0,
                  default_header_path=None,
                  changed_file_action=None,
-                 database_shape=None,
-                 database_form_gen_lvl=None):
+                 default_seperators=(", ", ": "),
+                 default_file_encoding="utf-8"):
+        self.default_file_encoding = default_file_encoding
         self.default_header_path = default_header_path
         self.changed_file_action = changed_file_action
-        self.default_max_gen_lvl = default_mex_gen_lvl
-        self.default_encoding = default_file_encoding
+        self.default_seperators = default_seperators
+        self.default_sort_keys = default_sort_keys
+        self.default_max_lvl = default_max_lvl
         self.encryption_pass = encryption_pass
-        self.database_form = database_shape
+        self.default_indent = default_indent
+        self.database_shape = database_shape
         self.default_path = default_path
         self.encryption = encryption
         self.header = header
 
     def __dump_gen_(self,
                     obj,
-                    max_gen_lvl=1,
-                    gen_lvl=1,
                     indent="",
-                    seperators=(", ", ": ")):
-        if type(seperators) != tuple or len(seperators) != 2:
-            raise Exception("Seperator error")
+                    max_lvl=None,
+                    seperators=None,
+                    gen_lvl=1):
 
-        parser1, parser2 = seperators[0].rstrip(
-        ) if indent else seperators[0], seperators[1]
+        # yukarda bunun kontrolünü yapmıştık
+        if None in [max_lvl, seperators, indent, gen_lvl]:
+            raise Exception("Input cannot be None")
+
+        if type(seperators) != tuple:  # or len(seperators) != 2
+            raise Exception(f"Seperator error: {seperators}")
+
+        # yapf: disable
+        parser1, parser2 = seperators[0].rstrip() if indent else seperators[0], seperators[1]
+
+        kwargs = {
+            "element": None,
+            "indent": indent,
+            "max_lvl": max_lvl,
+            "seperators": seperators,
+            "gen_lvl": gen_lvl + 1
+        }
 
         if type(obj) in [list, tuple]:
             # firstün olayı parantez açtıktan sonra virgül koymamasını sağlamak
@@ -60,8 +79,8 @@ class Encoder:
             for element in obj:
                 if not first:
                     # parser ve indent yazdırma
-                    yield parser1 + "\n" + indent * (gen_lvl +
-                                                     1) if indent else parser1
+                    # yapf: disable
+                    yield parser1 + "\n" + indent * (gen_lvl + 1) if indent else parser1
 
                 elif indent:
                     # parantez açtıktan sonra indent yazdırma
@@ -72,8 +91,8 @@ class Encoder:
                 # eğer o tarz bir şey yoksa direkt olarak döndürülüyor
 
                 # gen_lvl + 1 olarak veriyor kontrol o fonksiyonda
-                for i in Encoder.__dump_gen(element, max_gen_lvl, gen_lvl + 1,
-                                            indent):
+                kwargs["element"] = element
+                for i in self.__dump_gen(**kwargs):
                     #   eğer recursion yapıyorsak for döngüsünde kullandığım fonksiyon
                     # kendi çağırdı bu fonksiyonun çıktılarını yield ile bize paslıyor
                     # Biz de onu alıp daha yukarı paslıyoruz
@@ -95,25 +114,25 @@ class Encoder:
 
             for key, value in obj.items():
                 if not first:
-                    yield parser1 + "\n" + indent * (gen_lvl +
-                                                     1) if indent else parser1
+                    # yapf: disable
+                    yield parser1 + "\n" + indent * (gen_lvl + 1) if indent else parser1
 
                 elif indent:
                     yield "\n" + indent * (gen_lvl + 1)
 
                 # maalesef key değeri tuple olabiliyor ve bunun için recursion kullanıyoruz
                 # eğer tuplesa recursion at değilse direkt olarak keyin değerini çevir
-                yield "".join([
-                    i
-                    for i in Encoder.__dump_gen_(key, max_gen_lvl, gen_lvl, "")
-                ]) if type(key) == tuple else Encoder.__convert(key)
+                kwargs["element"] = key
+                # yapf: disable
+                yield "".join([i for i in self.__dump_gen_(**kwargs)]) if type(key) == tuple else self.__convert(key)
+
                 # : koydu
                 yield parser2
 
                 # value döndürme
                 # yukardakinin aynısı
-                for i in Encoder.__dump_gen(value, max_gen_lvl, gen_lvl + 1,
-                                            indent):
+                kwargs["element"] = value
+                for i in self.__dump_gen(**kwargs):
                     yield i
 
                 first = False
@@ -130,26 +149,41 @@ class Encoder:
 
     def __dump_gen(self,
                    element,
-                   max_gen_lvl=0,
-                   gen_lvl=0,
-                   indent=0,
-                   seperators=(", ", ": ")):
+                   indent=None,
+                   max_lvl=None,
+                   seperators=None,
+                   gen_lvl=0):
+        # default şeylerin ayarlanması
+        indent = self.default_indent if indent is None else indent
+        max_lvl = self.default_max_lvl if max_lvl is None else max_lvl
+        seperators = self.default_seperators if seperators is None else seperators
+        ###
+
         indent = " " * indent if type(indent) == int else indent
 
+        kwargs = {
+            "obj":element,
+            "indent":indent,
+            "max_lvl":max_lvl,
+            "seperators":seperators,
+            "gen_lvl":gen_lvl
+        }
+
         if type(element) in [tuple, list, dict]:
-            if gen_lvl < max_gen_lvl:
-                for i in Encoder.__dump_gen_(element, max_gen_lvl, gen_lvl,
-                                             indent, seperators):
+            if gen_lvl < max_lvl:
+                # maximum generator derinliği aşılmadıysa yield
+                for i in self.__dump_gen_(**kwargs):
                     yield i
             else:
+                # maximum generator derinliği aşıldığında direkt olarak dönndürüyor
                 yield "".join([
-                    i for i in Encoder.__dump_gen_(element, max_gen_lvl,
-                                                   gen_lvl, indent, seperators)
+                    i for i in self.__dump_gen_(**kwargs)
                 ])
         else:
-            yield Encoder.__convert(element)
+            yield self.__convert(element)
 
     def __convert(self, element):
+        json = True
         if element in [float("Infinity"),
                        float("-Infinity")] or element != element:
             if element == float("Infinity"):
@@ -158,38 +192,51 @@ class Encoder:
                 return "-Infinity"
             elif element != element:
                 return "NaN"
+
+        elif json and element is None or type(element) == bool:
+            if element is None:
+                return "null"
+            elif element == True:
+                return "true"
+            elif element == False:
+                return "false"
+
         else:
             return f'"{element}"' if type(element) == str else str(element)
 
     def sort_keys(self, rv, *args, **kwargs):
         return rv
 
-    def dumps(self, obj, sort_keys=0, **kwargs):
-        if sort_keys:
-            return Encoder.sort_keys("".join(
-                [i for i in Encoder.__dump_gen(obj, **kwargs)]))
-        else:
-            return "".join([i for i in Encoder.__dump_gen(obj, **kwargs)])
+    def dumps(self, obj, sort_keys=None, max_lvl=None, **kwargs):
+        """ json.dumpsın çakması + generator özelliği
+        Eğer (obje dışında) herhangi bir değere None verilirse Encoder objesinde verilen default değerini alır.
 
-    def dumps(self,
-              obj,
-              max_gen_lvl=0,
-              indent=0,
-              seperators=(", ", ": "),
-              sort_keys=0):
+        Args:
+            obj (any): Encode edilecek obje
+            indent (int, optional): Düzen için filan kaç boşluk bırakılcak gibi bir şey 4 yap baya güzel oluyor. Defaults to 0.
+            max_lvl (int, str, optional): Generatorların ne kadar derine ineceği. Defaults to 0.
+            seperators ((str [virgül], str [iki nokta]), optional): [description]. Defaults to (", ", ": ").
+            sort_keys (int, optional): objenin içindeki dictlerin keylere göre sıralanıp sıralanmayacağı (Aktif edilirse generator özelliği kalkıyor). Defaults to 0.
+
+        Returns:
+            Encoded object or a function that returns a generator which yields encoded object
+            kayraaaaaaa
+        """
+
+        kwargs["obj"] = obj
+        kwargs["max_lvl"] = self.default_max_lvl if max_lvl is None else max_lvl
+        sort_keys = self.default_sort_keys if sort_keys is None else sort_keys
+
         if sort_keys:
-            return Encoder.sort_keys("".join([
-                i for i in Encoder.__dump_gen(
-                    obj, max_gen_lvl=0, indent=0, seperators=(", ", ": "))
-            ]))
+            return self.sort_keys("".join(
+                                            [i for i in self.__dump_gen(**kwargs)]
+                                         ))
         else:
-            return "".join([
-                i for i in Encoder.__dump_gen(
-                    obj, max_gen_lvl=0, indent=0, seperators=(", ", ": "))
-            ])
+            return lambda: self.__dump_gen(**kwargs)
+
 
     def dump(self, obj, file_path, **kwargs):
-        Encoder.write(file_path, Encoder.encrypter_func(dumps(obj, **kwargs)))
+        self.write(file_path, self.encrypter_func(dumps(obj, **kwargs)))
 
     def write(self, rv, *args, **kwargs):
         return rv

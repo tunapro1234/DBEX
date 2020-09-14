@@ -8,6 +8,7 @@ from dbex.lib.decoder import Decoder
 """######################################################
 # Decoder için gen_lvl 
 # header doysasını gizleme
+# Encoder testlerini arttır
 # Decoder ve Encoderda sort_keys
 # Decoder ve Encoder için Exception classları
 # Decoder ve Encoder için backslah geliştirmesi
