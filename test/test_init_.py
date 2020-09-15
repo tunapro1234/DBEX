@@ -115,23 +115,21 @@ class TestMainPackage(unittest.TestCase):
     ##########################################################
 
     def test_dumps_loads(self):
-        tester = "{12:23,34:45}"
-        # yapf: disable
-        result = enc.dumps(dec.loads(tester, max_depth="all"), max_depth=0, seperators=(",",":"))
-        # yapf: disable
-        result2 = enc.dumps(dec.loads(tester), seperators=(",",":"))
+        tester = "{12: 23, 34: 45}"
 
-        print(f"{tester}\n{result}\n{result2}")
-        self.assertEqual(result, tester)
-        self.assertEqual(result2, tester)
+        result = enc.dumps(dec.loads(tester, max_depth="all"))
+        result2 = enc.dumps(dec.loads(tester))
+
+        self.assertEqual(tester, result)
+        self.assertEqual(tester, result2)
+        # print(f"{tester}\n{result}\n{result2}")
 
     def test_loads_dumps(self):
         tester = {12: 23, 34: 45}
-        # yapf: disable
-        result = dec.loads(enc.dumps(tester, max_depth="all"), max_depth=0)
-        # yapf: disable
+
+        result = dec.loads(enc.dumps(tester, max_depth="all"))
         result2 = dec.loads(enc.dumps(tester))
 
-        print(f"{tester}\n{result}\n{result2}")
-        self.assertEqual(result, tester)
-        self.assertEqual(result2, tester)
+        self.assertEqual(tester, result)
+        self.assertEqual(tester, result2)
+        # print(f"{tester}\n{result}\n{result2}")

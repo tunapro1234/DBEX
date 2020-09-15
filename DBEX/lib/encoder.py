@@ -146,7 +146,6 @@ class Encoder:
                 # yapf: disable
                 yield f'"{inputObj}"' if type(inputObj) == str else str(inputObj)
 
-
     def __router(self, inputObj, max_depth=None, gen_lvl=None, **kwargs):
         # gen level bu fonksiyonu çağıran __convert fonksiyonunda arttırılıyor
         max_depth = self.default_max_depth if max_depth is None else max_depth
@@ -240,8 +239,6 @@ class Encoder:
         # parantez kapatma
         yield ")" if tuple_mode else "]"
 
-
-
     def __convert_dict(self,
                         iterable,
                         seperators=None,
@@ -294,7 +291,6 @@ class Encoder:
             yield f"\n{str_indent * (gen_lvl-1)}"
         # parantez kapatma
         yield "}"
-
 
     def dump(self, inputObj, path=None, sort_keys=None, encoding=None, encryptor=None, **kwargs):
         """[summary]

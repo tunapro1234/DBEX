@@ -278,11 +278,3 @@ class Encoder:
         for i in generator:
             with open(path, "a") as file:
                 file.write(i)
-
-
-def test():
-    return
-
-
-if __name__ == "__main__":
-    test()
