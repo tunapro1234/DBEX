@@ -346,9 +346,11 @@ class Encoder:
             inputObj = self.sort_keys(inputObj)
 
         # yapf: disable
-        if max_depth <= 0:
+        if max_depth == "all" or max_depth <= 0:
             return "".join([i for i in self.__convert(inputObj, **kwargs)])
         else:
+            # lambda koymamın nedenini bilmiyorum
+            # return lambda: self.__convert(inputObj, **kwargs)
             return self.__convert(inputObj, **kwargs)
 
     def dumper(self, inputObj, path=None, encoding=None, encryptor=None, **kwargs):
@@ -359,7 +361,6 @@ class Encoder:
             path (str): [description]. Defaults to None.
             max_depth (int):
             indent (int):
-            sort_keys (bool):
             allow_nan (bool, optional):
             seperators ((str [virgül], str[iki nokta])):
         

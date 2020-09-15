@@ -111,3 +111,27 @@ class TestMainPackage(unittest.TestCase):
         self.assertEqual(result, correct_result)
 
         os.remove(self.test_file)
+
+    ##########################################################
+
+    def test_dumps_loads(self):
+        tester = "{12:23,34:45}"
+        # yapf: disable
+        result = enc.dumps(dec.loads(tester, max_depth="all"), max_depth=0, seperators=(",",":"))
+        # yapf: disable
+        result2 = enc.dumps(dec.loads(tester), seperators=(",",":"))
+
+        print(f"{tester}\n{result}\n{result2}")
+        self.assertEqual(result, tester)
+        self.assertEqual(result2, tester)
+
+    def test_loads_dumps(self):
+        tester = {12: 23, 34: 45}
+        # yapf: disable
+        result = dec.loads(enc.dumps(tester, max_depth="all"), max_depth=0)
+        # yapf: disable
+        result2 = dec.loads(enc.dumps(tester))
+
+        print(f"{tester}\n{result}\n{result2}")
+        self.assertEqual(result, tester)
+        self.assertEqual(result2, tester)
