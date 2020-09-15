@@ -23,7 +23,7 @@ dumper ve loder uyumlu çalışabilmesi için __router gen_normalizer yapısınd
 
 yani __router gen_func alacak ve list-dict ayrımı için gen_func.__name__e bakacak
 
-peki __init_list_gen içinden __router çağırmak istersem ne olacak
+peki __convert_list içinden __router çağırmak istersem ne olacak
 eğer generator bize callable bir değer döndürürse bu değer __routera uçuyor ama eğer callacle bir değer göndermezse __converte
 buraya kadar gayet iyi 
 __convert bir generator olsa ve __routerı convert içine koysam
@@ -120,31 +120,46 @@ class Encoder:
                 for i in self.__router(inputObj, **kwargs):
                     yield i
 
-            elif inputObj is None:
-                yield "null" if json_compability else "None"
+            else:
+                yield self.__convert2(inputObj, **kwargs)
+
+        def __convert_obj(self,
+                          inputObj,
+                          json_compability=None,
+                          allow_nan=None,
+                          **kwargs):
+
+            json_compability = self.json_compability if json_compability is None else json_compability
+            allow_nan = self.allow_nan if allow_nan is None else allow_nan
+
+            kwargs["json_compability"] = json_compability
+            kwargs["allow_nan"] = allow_nan
+
+            if inputObj is None:
+                return "null" if json_compability else "None"
 
             elif type(inputObj) in [bool]:
                 if json_compability:
-                    yield "true" if inputObj else "false"
+                    return "true" if inputObj else "false"
 
                 else:
-                    yield "True" if inputObj else "False"
+                    return "True" if inputObj else "False"
 
             # yapf: disable
             elif inputObj in [float("Infinity"), float("-Infinity")] or inputObj != inputObj:
 
                 if inputObj == float("Infinity"):
-                    yield "Infinity"
+                    return "Infinity"
 
                 elif inputObj == float("-Infinity"):
-                    yield "-Infinity"
+                    return "-Infinity"
 
                 elif inputObj != inputObj:
-                    yield "NaN"
+                    return "NaN"
 
             else:
                 # yapf: disable
-                yield f'"{inputObj}"' if type(inputObj) == str else str(inputObj)
+                return f'"{inputObj}"' if type(inputObj) == str else str(inputObj)
 
     def __router(self, inputObj, max_depth=None, gen_lvl=None, **kwargs):
         # gen level bu fonksiyonu çağıran __convert fonksiyonunda arttırılıyor
@@ -376,8 +391,7 @@ class Encoder:
               path=None,
               encoding=None,
               mode=None,
-              encryptor=None,
-              **kwargs):
+              encryptor=None):
         """Verilen stringi verilen pathe yazdırır.
 
         Args:
