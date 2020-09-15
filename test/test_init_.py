@@ -64,8 +64,8 @@ class TestMainPackage(unittest.TestCase):
         os.remove(self.test_file)
 
     def test_loads(self):
-        result = dec.loads("[]")
-        correct_result = []
+        result = dec.loads("{12:23,34:45}")
+        correct_result = {12: 23, 34: 45}
         self.assertEqual(result, correct_result)
 
     def test_loader(self):

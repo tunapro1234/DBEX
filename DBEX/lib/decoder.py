@@ -582,9 +582,9 @@ class Decoder:
                 return (i for i in self.__init_dict_gen(generator_func2, max_depth=max_depth))
 
             if max_depth == "all" or max_depth > 0:
-                return self.gen_normalizer(dict_gen)
+                return dict_gen
             else:
-                return dict_gen(generator_func2)
+                return self.gen_normalizer(dict_gen)
 
         elif first_element == "(":
 
