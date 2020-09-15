@@ -90,27 +90,26 @@ class TestEncoder(unittest.TestCase):
         import json
         tester = ["tunapro1234", 1234, ["", {"a": "bb"}]]
 
-        # result = enc.dumps(tester, indent=4)
-        result = "".join([i for i in enc._Encoder__convert(tester, indent=4)])
+        result = enc.dumps(tester, indent=4)
         correct_result = json.dumps(tester, indent=4)
 
         # print(f"{result}\n{correct_result}")
         self.assertEqual(result, correct_result)
 
-    def test_init_list_gen(self):
+    def test_convert_list(self):
         tester = ["tuna", "None"]
 
-        result = "".join([i for i in enc._Encoder__init_list_gen(tester)])
+        result = "".join([i for i in enc._Encoder__convert_list(tester)])
         correct_result = '["tuna", "None"]'
         # correct_result = str(tester) # tırnak işareti sıkıntıları
 
         self.assertEqual(result, correct_result)
 
-    def test_init_dict_gen(self):
+    def test_convert_dict(self):
         tester = {"tuna": "None", "pro": "1234"}
 
         # yapf: disable
-        result = "".join([i for i in enc._Encoder__init_dict_gen(tester.items(), seperators=(", ", ": "))])
+        result = "".join([i for i in enc._Encoder__convert_dict(tester.items(), seperators=(", ", ": "))])
         correct_result = '{"tuna": "None", "pro": "1234"}'
         # correct_result = str(tester) # tırnak işareti sıkıntıları
 

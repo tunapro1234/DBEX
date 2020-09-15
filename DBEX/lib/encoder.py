@@ -157,23 +157,23 @@ class Encoder:
         if callable(inputObj):
             gen = inputObj()
             if inputObj.__name__ == "dict_gen":
-                f_gen = self.__init_dict_gen(gen, **kwargs)
+                f_gen = self.__convert_dict(gen, **kwargs)
 
             elif inputObj.__name__ == "list_gen":
-                f_gen = self.__init_list_gen(gen, **kwargs)
+                f_gen = self.__convert_list(gen, **kwargs)
 
             elif inputObj.__name__ == "tuple_gen":
-                f_gen = self.__init_list_gen(gen, tuple_mode=True, **kwargs)
+                f_gen = self.__convert_list(gen, tuple_mode=True, **kwargs)
 
         else:
             if type(inputObj) == dict:
-                f_gen = self.__init_dict_gen(inputObj.items(), **kwargs)
+                f_gen = self.__convert_dict(inputObj.items(), **kwargs)
 
             elif type(inputObj) == list:
-                f_gen = self.__init_list_gen(inputObj, **kwargs)
+                f_gen = self.__convert_list(inputObj, **kwargs)
 
             elif type(inputObj) == tuple:
-                f_gen = self.__init_list_gen(inputObj, tuple_mode=True, **kwargs)
+                f_gen = self.__convert_list(inputObj, tuple_mode=True, **kwargs)
 
         if max_depth == "all" or gen_lvl < max_depth:
             for i in f_gen:
@@ -181,7 +181,7 @@ class Encoder:
         else:
             yield "".join([i for i in f_gen])
 
-    def __init_list_gen(self,
+    def __convert_list(self,
                         iterable,
                         tuple_mode=False,
                         seperators=None,
@@ -242,7 +242,7 @@ class Encoder:
 
 
 
-    def __init_dict_gen(self,
+    def __convert_dict(self,
                         iterable,
                         seperators=None,
                         max_depth=None,
