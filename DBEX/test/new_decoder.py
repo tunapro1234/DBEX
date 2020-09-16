@@ -65,20 +65,23 @@ class Decoder:
     def __init__(self,
                  header=True,
                  default_path=None,
+                 json_compability=1,
                  default_max_depth=0,
                  database_shape=None,
                  default_sort_keys=0,
                  encryption_pass=None,
                  changed_file_action=0,
-                 default_decryptor=None,
+                 default_decrypter=None,
                  default_header_path=None,
                  default_file_encoding="utf-8"):
+        
         self.default_file_encoding = default_file_encoding
         self.changed_file_action = changed_file_action
         self.default_header_path = default_header_path
-        self.default_decryptor = default_decryptor
+        self.default_decrypter = default_decrypter
         self.default_sort_keys = default_sort_keys
         self.default_max_depth = default_max_depth
+        self.json_compability = json_compability
         self.encryption_pass = encryption_pass
         self.database_shape = database_shape
         self.default_path = default_path
@@ -121,7 +124,7 @@ class Decoder:
         if ending_index != last_token_index:
             yield temp
 
-    def __tokenize_check(self, reader_gen, tokenizers=None):
+    def __tokenize_control(self, reader_gen, tokenizers=None):
         """her ne kadar __tokenize fonksiyonunda tokenlara ayırmış olsak da 
         tırnak işaretlerinin lanetine yakalanmaktan kurtulmak için bu fonksiyonu kullanıyoruz
 
@@ -187,18 +190,24 @@ class Decoder:
 
                         #   İlk başta .tags ve .data şeylerine sahip
                         # olan bir class açmıştım ama şu an gereksiz görüyorum
+                        
+                        # Proje ne kadar uzadı be
+                        # Bu satıları kaç ay önce yazmıştım :-(
 
                 elif part == "\\":
                     # Lanet olası şey
                     if is_string:
+                        
                         # Önceki bu değilse anlam kazansın
                         # Buysa anlamını yitirisin (\\ girip \ yazması için filan)
+                        if not is_prv_bs:
+                            active_str.append("\\")
+                        
+                        # Tersine çevir
                         is_prv_bs = bool(1 - is_prv_bs)
-                        active_str.append("\\")
-
-                        # oysa ki seni kullanmayı çok isterdim
-                        # if (is_prv_bs := bool(1 - is_prv_bs)):
-                        #     active_str.append("\\")
+                        # lan ben bu değişkeni neden kullanmamışım
+                        # haydaaa neyse hallettim
+                        
                     else:
                         # String dışında kullanmak yasak
                         raise DBEXDecodeError(
@@ -212,6 +221,7 @@ class Decoder:
                 if is_string:
                     active_str.append(part)
 
+                # boşluklar eleniyor
                 elif part.strip() != "":
                     yield part
 
@@ -223,10 +233,10 @@ class Decoder:
     def __convert_obj(self):
         pass
 
-    def __convert_list(self):
+    def __convert_list(self, tuple_mode=False, max_depth=None, gen_lvl=None, **kwargs):
         pass
 
-    def __convert_dict(self):
+    def __convert_dict(self, max_depth=None, gen_lvl=None, **kwargs):
         pass
 
     def __find_next_closing(self):
@@ -244,34 +254,54 @@ class Decoder:
     def dumper(self):
         pass
 
-    # path=None, encoding=None, encryptor=None, max_depth=None, sort_keys=None, **kwargs
-
     def read(self,
              path=None,
              encoding=None,
-             decryptor=None,
+             decrypter=None,
              sort_keys=None,
              **kwargs):
-
+        
+        # sort keys olayına göz at
         encoding = self.default_file_encoding if encoding is None else encoding
-        decryptor = self.default_decryptor if decryptor is None else decryptor
+        decrypter = self.default_decrypter if decrypter is None else decrypter
         path = self.default_path if path is None else path
 
         with open(path) as file:
-            return decryptofile.read()
-
+            read = file.read()
+        
+        return decrypter(read, **kwargs) if decrypter is not None else read 
+        
     def read_gen(self,
                  path=None,
                  encoding=None,
-                 decryptor=None,
+                 decrypter=None,
                  max_depth=None,
                  **kwargs):
-        pass
+        
+        decrypter = self.default_gen_decrypter if decrypter is None else decrypter
+        encoding = self.default_file_encoding if encoding is None else encoding
+        path = self.default_path if path is None else path
+        
+        char = True
+        with open(path) as file:
+            while char:
+                yield (char := file.read(1)) if decrypter is None else decrypter((char := file.read(1)))
 
     def read_gen_safe(self,
                       path=None,
                       encoding=None,
-                      decryptor=None,
+                      decrypter=None,
                       max_depth=None,
                       **kwargs):
-        pass
+        
+        decrypter = self.default_gen_decrypter if decrypter is None else decrypter
+        encoding = self.default_file_encoding if encoding is None else encoding
+        path = self.default_path if path is None else path
+        
+        char = True
+        index = -1
+        while char:
+            with open(path) as file:
+                file.seek((index := index+1), 0)
+                yield (char := file.read(1)) if decrypter is None else decrypter((char := file.read(1))
+                                                                                 

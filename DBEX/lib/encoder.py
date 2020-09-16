@@ -70,6 +70,7 @@ class Encoder:
                  default_seperators=(", ", ": "),
                  default_file_encoding="utf-8",
                  allow_nan=(True if True else True)):
+
         self.default_file_encoding = default_file_encoding
         self.default_header_path = default_header_path
         self.changed_file_action = changed_file_action
@@ -120,43 +121,43 @@ class Encoder:
             else:
                 yield self.__convert_obj(inputObj, **kwargs)
 
-        def __convert_obj(self,
-                          inputObj,
-                          json_compability=None,
-                          allow_nan=None,
-                          **kwargs):
+    def __convert_obj(self,
+                      inputObj,
+                      json_compability=None,
+                      allow_nan=None,
+                      **kwargs):
 
-            json_compability = self.json_compability if json_compability is None else json_compability
-            allow_nan = self.allow_nan if allow_nan is None else allow_nan
+        json_compability = self.json_compability if json_compability is None else json_compability
+        allow_nan = self.allow_nan if allow_nan is None else allow_nan
 
-            kwargs["json_compability"] = json_compability
-            kwargs["allow_nan"] = allow_nan
+        kwargs["json_compability"] = json_compability
+        kwargs["allow_nan"] = allow_nan
 
-            if inputObj is None:
-                return "null" if json_compability else "None"
+        if inputObj is None:
+            return "null" if json_compability else "None"
 
-            elif type(inputObj) in [bool]:
-                if json_compability:
-                    return "true" if inputObj else "false"
-
-                else:
-                    return "True" if inputObj else "False"
-
-            # yapf: disable
-            elif inputObj in [float("Infinity"), float("-Infinity")] or inputObj != inputObj:
-
-                if inputObj == float("Infinity"):
-                    return "Infinity"
-
-                elif inputObj == float("-Infinity"):
-                    return "-Infinity"
-
-                elif inputObj != inputObj:
-                    return "NaN"
+        elif type(inputObj) in [bool]:
+            if json_compability:
+                return "true" if inputObj else "false"
 
             else:
-                # yapf: disable
-                return f'"{inputObj}"' if type(inputObj) == str else str(inputObj)
+                return "True" if inputObj else "False"
+
+        # yapf: disable
+        elif inputObj in [float("Infinity"), float("-Infinity")] or inputObj != inputObj:
+
+            if inputObj == float("Infinity"):
+                return "Infinity"
+
+            elif inputObj == float("-Infinity"):
+                return "-Infinity"
+
+            elif inputObj != inputObj:
+                return "NaN"
+
+        else:
+            # yapf: disable
+            return f'"{inputObj}"' if type(inputObj) == str else str(inputObj)
 
     def __router(self, inputObj, max_depth=None, gen_lvl=None, **kwargs):
         # gen level bu fonksiyonu çağıran __convert fonksiyonunda arttırılıyor
