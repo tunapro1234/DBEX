@@ -55,9 +55,6 @@ kesin bir bokluk çıkacak
 
 
 class Encoder:
-    encrypter_func = defaultEncrypter_func
-    header_shape = gvars.header_shape
-
     def __init__(self,
                  header=False,
                  default_indent=0,
@@ -68,7 +65,7 @@ class Encoder:
                  default_sort_keys=0,
                  encryption_pass=None,
                  changed_file_action=0,
-                 default_encryptor=None,
+                 default_encrypter=None,
                  default_header_path=None,
                  default_seperators=(", ", ": "),
                  default_file_encoding="utf-8",
@@ -79,7 +76,7 @@ class Encoder:
         self.default_seperators = default_seperators
         self.default_sort_keys = default_sort_keys
         self.default_max_depth = default_max_depth
-        self.default_encryptor = default_encryptor
+        self.default_encrypter = default_encrypter
         self.json_compability = json_compability
         self.encryption_pass = encryption_pass
         self.default_indent = default_indent
@@ -88,9 +85,9 @@ class Encoder:
         self.allow_nan = allow_nan
         self.header = header
 
-        self.default_gen_encryptor = None
-        if self.default_encryptor is not None and self.default_encryptor.gen_support:
-            self.default_gen_encryptor = self.default_encrypter
+        self.default_gen_encrypter = None
+        if self.default_encrypter is not None and self.default_encrypter.gen_support:
+            self.default_gen_encrypter = self.default_encrypter
 
     def __convert(self,
                   inputObj,
@@ -121,7 +118,7 @@ class Encoder:
                     yield i
 
             else:
-                yield self.__convert2(inputObj, **kwargs)
+                yield self.__convert_obj(inputObj, **kwargs)
 
         def __convert_obj(self,
                           inputObj,
@@ -307,7 +304,7 @@ class Encoder:
         # parantez kapatma
         yield "}"
 
-    def dump(self, inputObj, path=None, sort_keys=None, encoding=None, encryptor=None, **kwargs):
+    def dump(self, inputObj, path=None, sort_keys=None, encoding=None, encrypter=None, **kwargs):
         """[summary]
 
         Args:
@@ -322,7 +319,7 @@ class Encoder:
             [type]: [description]
         """
 
-        encryptor = self.default_gen_encryptor if encryptor is None else encryptor
+        encrypter = self.default_gen_encrypter if encrypter is None else encrypter
         encoding = self.default_file_encoding if encoding is None else encoding
         sort_keys = self.default_sort_keys if sort_keys is None else sort_keys
         path = self.default_path if path is None else path
@@ -332,7 +329,7 @@ class Encoder:
 
         # yapf: disable
         rv = "".join([i for i in self.__convert(inputObj, **kwargs)])
-        return self.write(rv, path=path, encoding=encoding, encryptor=encryptor)
+        return self.write(rv, path=path, encoding=encoding, encrypter=encrypter)
 
     def dumps(self, inputObj, max_depth=None, sort_keys=None, **kwargs):
         """[summary]
@@ -364,7 +361,7 @@ class Encoder:
             # return lambda: self.__convert(inputObj, **kwargs)
             return self.__convert(inputObj, **kwargs)
 
-    def dumper(self, inputObj, path=None, encoding=None, encryptor=None, **kwargs):
+    def dumper(self, inputObj, path=None, encoding=None, encrypter=None, **kwargs):
         """[summary]
 
         Args:
@@ -378,20 +375,20 @@ class Encoder:
         Returns:
             [type]: [description]
         """
-        encryptor = self.default_gen_encryptor if encryptor is None else encryptor
+        encrypter = self.default_gen_encrypter if encrypter is None else encrypter
         encoding = self.default_file_encoding if encoding is None else encoding
         path = self.default_path if path is None else path
 
         # yapf: disable
         generator = self.__convert(inputObj, **kwargs)
-        return self.write_gen(generator, path=path, encoding=encoding, encryptor=encryptor)
+        return self.write_gen(generator, path=path, encoding=encoding, encrypter=encrypter)
 
     def write(self,
               string,
               path=None,
               encoding=None,
               mode=None,
-              encryptor=None):
+              encrypter=None):
         """Verilen stringi verilen pathe yazdırır.
 
         Args:
@@ -408,9 +405,9 @@ class Encoder:
         mode = "w+" if mode not in ["w+", "w"] else mode
         path = self.default_path if path is None else path
         encoding = self.default_file_encoding if encoding is None else encoding
-        encryptor = self.default_encryptor if encryptor is None else encryptor
+        encrypter = self.default_encrypter if encrypter is None else encrypter
 
-        string = encryptor(string) if encryptor else string
+        string = encrypter(string) if encrypter else string
 
         try:
             with open(path, mode, encoding=encoding) as file:
@@ -424,7 +421,7 @@ class Encoder:
                   generator,
                   path=None,
                   encoding=None,
-                  encryptor=None):
+                  encrypter=None):
         """Generator objesinin döndürüğü stringleri verilen pathe yazdırır.
 
         Args:
@@ -437,9 +434,9 @@ class Encoder:
         """
         path = self.default_path if path is None else path
         encoding = self.default_file_encoding if encoding is None else encoding
-        encryptor = self.default_gen_encryptor if encryptor is None else encryptor
+        encrypter = self.default_gen_encrypter if encrypter is None else encrypter
 
-        generator = encryptor(generator) if encryptor else generator
+        generator = encrypter(generator) if encrypter else generator
 
         try:
             with open(path, "w+", encoding=encoding) as file:
@@ -457,7 +454,7 @@ class Encoder:
                        generator,
                        path=None,
                        encoding=None,
-                       encryptor=None,
+                       encrypter=None,
                        **kwargs):
         """Generator objesinin döndürüğü stringleri verilen pathe yazdırır (her seferinde açıp kapatarak).
 
@@ -471,9 +468,9 @@ class Encoder:
         """
         path = self.default_path if path is None else path
         encoding = self.default_file_encoding if encoding is None else encoding
-        encryptor = self.default_gen_encryptor if encryptor is None else encryptor
+        encrypter = self.default_gen_encrypter if encrypter is None else encrypter
 
-        generator = encryptor(generator) if encryptor else generator
+        generator = encrypter(generator) if encrypter else generator
 
         try:
             with open(path, "w+", encoding=encoding) as file:

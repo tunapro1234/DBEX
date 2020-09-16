@@ -64,24 +64,24 @@ class Decoder:
 
     def __init__(self,
                  header=True,
-                 encryption=None,
                  default_path=None,
                  default_max_depth=0,
                  database_shape=None,
                  default_sort_keys=0,
                  encryption_pass=None,
-                 default_header_path=None,
                  changed_file_action=0,
+                 default_decryptor=None,
+                 default_header_path=None,
                  default_file_encoding="utf-8"):
         self.default_file_encoding = default_file_encoding
         self.changed_file_action = changed_file_action
         self.default_header_path = default_header_path
+        self.default_decryptor = default_decryptor
         self.default_sort_keys = default_sort_keys
-        self.encryption_pass = encryption_pass
         self.default_max_depth = default_max_depth
+        self.encryption_pass = encryption_pass
         self.database_shape = database_shape
         self.default_path = default_path
-        self.encryption = encryption
         self.header = header
 
     def __tokenize(self, string, tokenizers=None):
@@ -246,11 +246,32 @@ class Decoder:
 
     # path=None, encoding=None, encryptor=None, max_depth=None, sort_keys=None, **kwargs
 
-    def read(self):
+    def read(self,
+             path=None,
+             encoding=None,
+             decryptor=None,
+             sort_keys=None,
+             **kwargs):
+
+        encoding = self.default_file_encoding if encoding is None else encoding
+        decryptor = self.default_decryptor if decryptor is None else decryptor
+        path = self.default_path if path is None else path
+
+        with open(path) as file:
+            return decryptofile.read()
+
+    def read_gen(self,
+                 path=None,
+                 encoding=None,
+                 decryptor=None,
+                 max_depth=None,
+                 **kwargs):
         pass
 
-    def read_gen(self):
-        pass
-
-    def read_gen_safe(self):
+    def read_gen_safe(self,
+                      path=None,
+                      encoding=None,
+                      decryptor=None,
+                      max_depth=None,
+                      **kwargs):
         pass

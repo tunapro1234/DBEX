@@ -43,8 +43,7 @@ class TestEncoder(unittest.TestCase):
         tester = {"a": "aa", "b": "bb", "c": "cc"}
         correct_result = '{"a":"aa","b":"bb","c":"cc"}'
 
-        result = enc.__main(tester, seperators=(",", ":"))
-        result = "".join([i for i in result])
+        result = enc.dumps(tester, seperators=(",", ":"))
 
         self.assertEqual(result, correct_result)
 
