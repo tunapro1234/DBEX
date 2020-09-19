@@ -51,7 +51,7 @@ class TestEncoder(unittest.TestCase):
         tester = [{"a": None}, float("NaN"), True, [], []]
         correct_result = '[{"a": null}, NaN, true, [], []]'
 
-        result = enc.__main(tester, seperators=(", ", ": "))
+        result = enc._Encoder__convert(tester, seperators=(", ", ": "))
         result = "".join([i for i in result])
 
         self.assertEqual(result, correct_result)
@@ -68,18 +68,22 @@ class TestEncoder(unittest.TestCase):
         def dict_gen():
             return (i for i in tester.items())
 
-        result = enc.__main(dict_gen)
+        result = enc._Encoder__convert(dict_gen)
         result = "".join([i for i in result])
 
         self.assertEqual(result, correct_result)
 
     def test_convert_json(self):
-        self.assertEqual("".join([i for i in enc.__main(None)]), "null")
-        self.assertEqual("".join([i for i in enc.__main(True)]), "true")
-        self.assertEqual("".join([i for i in enc.__main(False)]), "false")
+        self.assertEqual("".join([i for i in enc._Encoder__convert(None)]),
+                         "null")
+        self.assertEqual("".join([i for i in enc._Encoder__convert(True)]),
+                         "true")
+        self.assertEqual("".join([i for i in enc._Encoder__convert(False)]),
+                         "false")
 
     def test_NaN(self):
-        self.assertEqual("".join([i for i in enc.__main(float("NaN"))]), "NaN")
+        self.assertEqual(
+            "".join([i for i in enc._Encoder__convert(float("NaN"))]), "NaN")
 
     def test_indent(self):
         import json

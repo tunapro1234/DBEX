@@ -100,6 +100,8 @@ class Encoder:
         # indent
         # seperators
 
+        # JSON COMPABILITY OLAYINA BAK
+
         json_compability = self.json_compability if json_compability is None else json_compability
         max_depth = self.default_max_depth if max_depth is None else max_depth
         allow_nan = self.allow_nan if allow_nan is None else allow_nan
