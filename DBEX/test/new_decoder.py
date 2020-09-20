@@ -420,11 +420,11 @@ class Decoder:
 			# index = self.__find_next_closing(gen, index=index, type=type) if element in "[{(" else index
 			
 			if element.strip() == ":":
-				if len(cur_value) == 1:
     				
+				if len(cur_value) == 1:
 				else:
     				raise DBEXDecodeError
-				
+
 			elif element.strip() == ",":
 				yield cur_value
 				cur_value = ()
