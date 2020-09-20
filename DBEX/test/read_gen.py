@@ -33,6 +33,9 @@ def test():
 	for i in gen:
 		print(i, end="")
 
+def test():
+
+ 
 
 if __name__ == "__main__":
 	test()

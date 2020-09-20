@@ -387,14 +387,14 @@ class Decoder:
 					index
 				
 				yield self.__convert(generator_func, index=index, **kwargs)
-    			lui+=1
+				lui+=1
 
 			elif element in err_closing:
 				raise DBEXDecodeError("Yanlis parantez kapatma: ['{element}']", code=0)
 
 			else:
 				# yapf: disable
-    			raise DBEXDecodeError("Virgül koymadan yeni eleman eklenemez", code=20)
+				raise DBEXDecodeError("Virgül koymadan yeni eleman eklenemez", code=20)
 				# virgül koymadan yeni eleman eklenemiyor
 
 			index += 1
