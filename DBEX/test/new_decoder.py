@@ -422,6 +422,7 @@ class Decoder:
 			if element.strip() == ":":
     				
 				if len(cur_value) == 1:
+					pass
 				else:
     				raise DBEXDecodeError
 
