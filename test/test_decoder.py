@@ -86,22 +86,29 @@ class TestNewDecoder(unittest.TestCase):
 		result = "".join([i for i in dec.read_gen_safe(self.test_file)])
 		self.assertEqual(tester, result)
 
-	def test_convert_adv(self):
-		tester = '[NaN, true, [], []]'
-		correct_result = [float("NaN"), True, [], []]
+	def test_convert_list(self):
+		tester = '["false", True, [1, 2, 3, []]]'
+		correct_result = ["false", True, [1, 2, 3, []]]
 
-		result = dec.gen_normalizer(
-			dec._Decoder__convert(lambda: dec._Decoder__tokenize_control(tester)))
+		result = dec._Decoder__convert(lambda: dec._Decoder__tokenize_control(tester))
+
+		self.assertEqual(result, correct_result)
+	
+	def test_convert_tuple(self):
+		tester = '("false", True, (1, 2, 3, ()))'
+		correct_result = ("false", True, (1, 2, 3, ()))
+
+		result = dec._Decoder__convert(lambda: dec._Decoder__tokenize_control(tester))
 
 		self.assertEqual(result, correct_result)
 
-	# def test_convert_gen(self):
-	# 	correct_result = {"a": 1, "b": 2, "c": [3, 4]}
-	# 	tester = '{"a": 1, "b": 2, "c": [3, 4]}'
+	def test_convert_dict(self):
+		correct_result = {"a": 1, "b": 2, "c": {"3": 4}}
+		tester = '{"a": 1, "b": 2, "c": {"3": 4}}'
 
-	# 	result = dec.gen_normalizer(dec._Decoder__convert(tester))
+		result = dec._Decoder__convert(lambda: dec._Decoder__tokenize_control(tester))
 
-	# 	self.assertEqual(result, correct_result)
+		self.assertEqual(result, correct_result)
 
 
 class TestDecoder(unittest.TestCase):

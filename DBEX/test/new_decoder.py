@@ -296,9 +296,8 @@ class Decoder:
 		return_func = None
 
 		if element == "[":
-			next_closing = self.__find_next_closing(gen, type="[]")
-			new_gen_func = lambda: (j for i, j in enumerate(generator_func())
-				  if index < i <= next_closing)
+			next_closing = self.__find_next_closing(gen, index=index, type="[]")
+			new_gen_func = lambda: (j for i, j in enumerate(generator_func()) if index < i <= next_closing)
 
 			def list_gen():
 				# convert_liste yeni generator_func verdiğimiz için index vermemiz gerekmiyor
@@ -307,7 +306,7 @@ class Decoder:
 			return_func = list_gen
 
 		elif element == "{":
-			next_closing = self.__find_next_closing(gen, type="{}")
+			next_closing = self.__find_next_closing(gen, index=index, type="{}")
 			new_gen_func = lambda: (j for i, j in enumerate(generator_func())
 				  if index < i <= next_closing)
 
@@ -318,7 +317,7 @@ class Decoder:
 			return_func = dict_gen
 
 		elif element == "(":
-			next_closing = self.__find_next_closing(gen, type="()")
+			next_closing = self.__find_next_closing(gen, index=index, type="()")
 			new_gen_func = lambda: (j for i, j in enumerate(generator_func())
 				  if index < i <= next_closing)
 
@@ -326,12 +325,11 @@ class Decoder:
 				# yapf: disable
 				return (i for i in self.__convert_list(new_gen_func, tuple_mode=True, **kwargs))
 
-			return_func = tuple_gen
+			return tuple(self.gen_normalizer(tuple_gen))
+			# return_func = tuple_gen
 
 
-		if ((max_depth == "all" or gen_lvl < max_depth)
-		 and return_func.__name__ != "tuple_gen"):
-
+		if (max_depth == "all" or gen_lvl < max_depth):
 			return return_func
 
 		else:
@@ -348,6 +346,9 @@ class Decoder:
 
 		if element.isdigit():
 			return int(element)
+		
+		elif element[0] in "\"'" and element[-1] in "\"'" and element[0] == element[-1]:
+			return element[1:-1]
 
 		elif element in ["None"]:
 			return None
@@ -363,8 +364,7 @@ class Decoder:
 			raise DBEXDecodeError(
 			 f"Undefined keyword : [{element}]", 0)
 
-	def __convert_list(self, generator_func, tuple_mode=False, max_depth=None, **kwargs):
-		max_depth = self.default_max_depth if max_depth is None else max_depth
+	def __convert_list(self, generator_func, tuple_mode=False, **kwargs):
 		gen = generator_func()
 
 		lui = -1
@@ -377,30 +377,61 @@ class Decoder:
 
 		index = 0
 		for element in gen:
-			if element == ",":
+			if element.strip() == ",":
 				ci += 1
 
-			elif (ci - 1) == lui or element == closing:
-				# '[NaN, true, [], []]'
-				
-				if element in "[{(":
-					index
-				
-				yield self.__convert(generator_func, index=index, **kwargs)
-				lui+=1
-
-			elif element in err_closing:
+			elif element.strip() == closing:
+				# Buraya hiç girilmiyor (çünkü __router parantez kapatmayı generator_function içine dahil etmiyor)
+				# yine de yazmakta fayda var
+				break
+			
+			elif element.strip() in err_closing:
 				raise DBEXDecodeError("Yanlis parantez kapatma: ['{element}']", code=0)
+					
+			elif (ci - 1) == lui:
+				yield self.__convert(generator_func, index=index, **kwargs)
+				
+				# index arttırma
+				if element in "[{(":
+					type = "()" if tuple_mode else "[]"
+					index = self.__find_next_closing(gen, index=index, type=type)
+					# element, index = next(gen), index+1
+
+				lui+=1
 
 			else:
 				# yapf: disable
 				raise DBEXDecodeError("Virgül koymadan yeni eleman eklenemez", code=20)
 				# virgül koymadan yeni eleman eklenemiyor
-
+			
 			index += 1
 
-	def __convert_dict(self, generator_func, max_depth=None, gen_lvl=None, **kwargs):
-		pass
+	def __convert_dict(self, generator_func, **kwargs):
+		gen = generator_func()
+		index = 0
+		
+		# aktif olarak döndürülecek hangi değere yazığımız, key ya da valueya yazdığımızı gösteriyor
+		# eğer keye yazmaya çalışıyorsak 0, valueya yazmaya çalışıyorsak 1
+		cursor = 0 
+		
+		cur_value = ()
+		for element in gen:
+			# self.__convert(generator_func, index=index, **kwargs)
+			# index = self.__find_next_closing(gen, index=index, type=type) if element in "[{(" else index
+			
+			if element.strip() == ":":
+				if len(cur_value) == 1:
+    				
+				else:
+    				raise DBEXDecodeError
+				
+			elif element.strip() == ",":
+				yield cur_value
+				cur_value = ()
+				
+			index = index + 1
+
+
 
 	def __find_next_closing(self, gen, index=0, type="[]"):
 		"""sonraki parantez kapatma şeyini buluyor
@@ -428,7 +459,7 @@ class Decoder:
 			if cot == 0:
 				return index
 
-		raise DBEXDecodeError
+		raise DBEXDecodeError("parantezin kapanisi bulanamadi", 0)
 
 	def dump(self):
 		pass
@@ -448,23 +479,24 @@ class Decoder:
 		Returns:
 			objenin gerçek formu 
 		"""
-
+		# pylint hata önlemek için
+		final = None
 		gen = gen_func()
-		if gen_func.__name__ == "dict_gen":
-			final = {}
-			for key, value in gen:
-				if callable(value):
-					final[key] = self.gen_normalizer(value)
-				else:
-					final[key] = value
-
-		elif gen_func.__name__ in ["list_gen", "tuple_gen"]:
+		if gen_func.__name__ in ["list_gen", "tuple_gen"]:
 			final = []
 			for value in gen:
 				if callable(value):
 					final.append(self.gen_normalizer(value))
 				else:
 					final.append(value)
+
+		elif gen_func.__name__ == "dict_gen":
+			final = {}
+			for key, value in gen:
+				if callable(value):
+					final[key] = self.gen_normalizer(value)
+				else:
+					final[key] = value
 
 		return final
 
