@@ -133,7 +133,7 @@ class Decoder:
 			yield temp
 
 	def __tokenize_control(self, reader_gen, tokenizers=None):
-		"""her ne kadar __tokenize fonksiyonunda tokenlara ayırmış olsak da 
+		"""Her ne kadar __tokenize fonksiyonunda tokenlara ayırmış olsak da 
 		tırnak işaretlerinin lanetine yakalanmaktan kurtulmak için bu fonksiyonu kullanıyoruz
 
 		Args:
@@ -241,36 +241,45 @@ class Decoder:
 				  max_depth=None,
 				  gen_lvl=0,
 				  **kwargs):
-		"""Verilen objenin nereye gideceğini yönlendiriyor ve generator
+		"""Verilen objenin nereye gideceğini yönlendiriyor ve generator DEĞİL
 
 		Args:
-			inputObj (function): generator döndüren fonksiyon
-			index (int): generator functionun döndürdüğü generatora göre kaçıncı elementte olduğumuz gibi bir şey
+			generator_func (function): generator döndüren fonksiyon
 			max_depth (int): Hangi derinliğe kadar generator olacağı. Defaults to class default.
-			gen_lvl (elleme): kaçıncı derinlikte recursion yaptığımızı anlamak için
+			index (int, elleme): generator functionun döndürdüğü generatora göre kaçıncı elementte olduğumuz gibi bir şey
+			gen_lvl (int, elleme): kaçıncı derinlikte recursion yaptığımızı anlamak için
 		
-		Yields:
+		Returns:
 			objenin çevrilmiş hali
 		"""
 
 		# yapf: disable
 		kwargs["max_depth"] = max_depth = self.default_max_depth if max_depth is None else max_depth
+		# max_depth default ayarlaması
 		kwargs["gen_lvl"] = gen_lvl + 1
+		# gen_lvl sadece burada arttırılıyor
 
 		gen = generator_func()  # fonksiyondan bir tane generaotr koparıyoruz
-		# element, index = next(gen), index+1 # sonraki elemana geçildi ve index de arttırıldı
 
+		# 	Şimdi bize bir index veriliyor ve bu index, dönüştürülmesi istenen objenin 
+		# generator_functionın döndürdüğü generatorın kaçıncı elemanı olduğunun sayacı
+		# Biz de bu objeye gidebilmek için aşağıdaki while döngüsünü kullanıyoruz
 		element, i = next(gen), 0  # 0. eleman çıkarıldı ve index değeri verildi
 		while i < index:  # elemtimiz verilen indexteki element oluyor
 			element, i = next(gen), i + 1
 
+		# 	Eğer eleman recursion gerektiren 
+		# bir parça olduğuna işaret ediyorsa
 		if element in "[{(":
 			# yapf: disable
 			return self.__router(element, gen, generator_func, index=index, **kwargs)
+			# yardımcı fonksiyona
 
 		else:
+			# Normal parçayı çevirmesi için diğer yardımcı fonksiyon
 			return self.__convert_obj(element)
 
+		# ne demem gerektiğini bilmiyorum
 		# try:
 		# 	next(gen)
 		# except StopIteration:
@@ -286,10 +295,36 @@ class Decoder:
 		max_depth=None,
 		gen_lvl=1,
 		**kwargs):
+		"""__convert için yardımcı fonksiyon, __convert_list ya da __convert_gen'e gideceğini belirliyor
+
+		Args:
+			element (any): Generatordan son çıkarılan eleman
+			gen (generator): Kullanılmış (ya da kullanılmamış) obje'nin generatoru
+			generator_func (function): gen'i döndürebilecek fonksiyon 
+			max_depth (int): Hangi derinliğe kadar generator olacağı. Defaults to class default.
+			index (int, elleme): generator functionun döndürdüğü generatora göre kaçıncı elementte olduğumuz gibi bir şey
+			gen_lvl (int, elleme): kaçıncı derinlikte recursion yaptığımızı anlamak için
+
+		Returns:
+			dict, list ya da generator_function 
+		"""
+
 		# yapf: disable
 		kwargs["max_depth"] = max_depth = self.default_max_depth if max_depth is None else max_depth
+		# default ayarlama şeyleri
 		kwargs["gen_lvl"] = gen_lvl
 		return_func = None
+
+		# 							Şimdi hızlıca özet geçeceğim. biz ilgili __convert_.. fonksiyonuna generator_function'ı 
+		# 						iletirken bu generator_function'ı boyutunu sadece dönüştürmek istediğimiz objenin boyuna 
+		# 					azaltarak iletiyoruz. Temelde bunu yapma sebebimizden emin değilim direkt olarak index de 
+		# 				verebilrmişim aslında (ben malım). Neyse çevirmeye zamanım olduğunu düşünmüyorum ayrıca şu anda
+		# 			aklıma gelmeyen bir sebebi de olabilir. Eski taslakları incelemek lazım, neyse. Küçültmek için öneclikle 
+		# 		aktif parantezin kapanışının indexi bulunuyor sonra şu anki indexle (yani parantezin açılşı) kapanış arasına 
+		# 	ksııtlanıyor. Sonra gen_normalizer tarafında anlaşılabilecek bir fonksiyon yaratıyorum ve bu fonksiyon bir generator 
+		# döndürüyor. Bu generator da kendi aldığı gen_normalizer'ı anlamlandırıyor 
+
+		# Ayrıca gen_lvl ve max_depth kontrolü de burada yapılıyor, aşılmışsa gen_normalizer'a yollanıyor
 
 		if element == "[":
 			next_closing = self.__find_next_closing(gen, index=index, b_type="[]")
@@ -332,6 +367,18 @@ class Decoder:
 			return self.gen_normalizer(return_func)
 
 	def __convert_obj(self, element, json_compability=True):
+		"""Verilen str objeyi anlamlandırıyor
+
+		Args:
+			element (str): obje
+			json_compability (bool, optional): json uyumluluğu. Defaults to True.
+
+		Raises:
+			DBEXDecodeError: Tanımlanmamış obje
+
+		Returns:
+			Objenin gerçek formu
+		"""
 		element = element.strip()
 
 		if json_compability:
@@ -363,41 +410,53 @@ class Decoder:
 	def __convert_list(self, generator_func, tuple_mode=False, **kwargs):
 		gen = generator_func()
 
+		# last used index
 		lui = -1
+		# current index
 		ci = 0
-
+		
 		# Parantez kapatma değişkeni
 		closing = ")" if tuple_mode else "]"
 		# İstemediğimiz parantez kapatma şekilleri
 		err_closing = "".join([i for i in "]})" if i != closing])
+		# virgül kontroolü için
+
 
 		index = 0
 		for element in gen:
 			if element.strip() == ",":
+				# kullanılabilecek index arttırıldı
 				ci += 1
 
 			elif element.strip() == closing:
 				# Buraya hiç girilmiyor (çünkü __router parantez kapatmayı generator_function içine dahil etmiyor)
 				# yine de yazmakta fayda var
+				#	- yoo giriyor (gelecekteki ve kendinin mal olduğunun farkında olan tuna)
 				break
 			
 			elif element.strip() in err_closing:
 				raise DBEXDecodeError("Yanlis parantez kapatma: ['{element}']", code=0)
-					
+				
+			# eğer kullanıma açık yer varsa
 			elif (ci - 1) == lui:
+				# objeyi dönüştür
 				yield self.__convert(generator_func, index=index, **kwargs)
 				
 				# index arttırma
 				if element in "[{(":
 					b_type=None
+					# 	bu tarz şeylerde 	
+					# kısaltma olmamsı beni üzüyor
 					if element == "(":
 						b_type = "()"
 					elif element == "[":
 						b_type = "[]"
 					elif element == "{":
 						b_type = "{}"
+					# index ve gen başlangıcı verilen objenin sonuna götürülüyor
 					index = self.__find_next_closing(gen, index=index, b_type=b_type)
 
+				# kullanılan index arttırıldı
 				lui+=1
 
 			else:
@@ -405,6 +464,7 @@ class Decoder:
 				raise DBEXDecodeError("Virgül koymadan yeni eleman eklenemez", code=20)
 				# virgül koymadan yeni eleman eklenemiyor
 			
+			# index arttırıldı
 			index += 1
 
 	def __convert_dict(self, generator_func, **kwargs):

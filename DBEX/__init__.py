@@ -7,6 +7,7 @@ from dbex.lib.decoder import Decoder
 #	Encoder dump fonksiyonlarına doc string ekle
 #	Biraz daha açıklama koymam çok hoş olabilirdi
 #	Decoder ve Encoder için backslash geliştirmesi
+#	HATA ISIMLENDIRMELERI
 #	
 #	Encoder kısmı Decoder koduna göre çok düzensiz kaçıyor 
 #		- yoo (gelecekteki tuna)    
