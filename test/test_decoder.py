@@ -151,10 +151,20 @@ class TestDecoder(unittest.TestCase):
 
 	def test_loads(self):
 		correct_result = ["tunapro", ((), ), [[]], [[0, "[\\]"]]]
-		# correct_result = ['"tunapro"', [[]], [[]], [[0, '"[\\]"']]]
 		tester = str(correct_result)
 		
 		result = dec.loads(tester)
+		self.assertEqual(result, correct_result)
+	
+	def test_loader(self):
+		correct_result = ["tunapro", ((), ), [[]], [[0, "[\\]"]]]
+		tester = str(correct_result)
+		with open(self.test_file, "w+") as file:
+			file.write(tester)
+		
+		result = dec.loader(path=self.test_file)
+		result = dec.gen_normalizer(result)
+		
 		self.assertEqual(result, correct_result)
 
 ###### CONVERT DICT
@@ -185,19 +195,6 @@ class TestDecoder(unittest.TestCase):
 			# yapf: disable
 			result = dec._Decoder__convert(lambda: (i for i in tester))
 		###
-		# yapf: disable
-		# tester = [ "{",
-		# 	"'a'", ":", "'aa'", ",",
-		# 	"None", ":", "'none'", ",",
-		# 	"\"True\"", ":", "'true'", ",",
-		# 	"0.3", ":", "'0.3'", ",",
-		# 	"True", ":", "'true'", ",",
-		# 	"(", ")", ":", "False", 
-		#    "}" ]
-
-		# correct_result = {'a':'aa', None:'none', "True":'true', 0.3:'0.3', True:'true', ():False}
-		# result = dec._Decoder__convert(dec._Decoder__tokenize_control(str(correct_result)))
-		# self.assertEqual(result, correct_result)
 
 	def test_convert_dict_recur(self):
 		correct_result = {"a": 1, "b": 2, "c": {"3": 4}}

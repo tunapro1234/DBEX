@@ -473,8 +473,6 @@ class Decoder:
 
 			index = index + 1
 
-
-
 	def __find_next_closing(self, gen, index=0, b_type="[]"):
 		"""sonraki parantez kapatma şeyini buluyor
 
@@ -504,36 +502,30 @@ class Decoder:
 		raise DBEXDecodeError("parantezin kapanisi bulanamadi", 0)
 
 	def load(self, path=None, sort_keys=None, encoding=None, decrypter=None, **kwargs):
-		kwargs["sort_keys"] = self.default_sort_keys if sort_keys is None else sort_keys
 		kwargs["decrypter"] = self.default_gen_decrypter if decrypter is None else decrypter
 		kwargs["encoding"] = self.default_file_encoding if encoding is None else encoding
 		kwargs["path"] = self.default_path if path is None else path
-
-		read = self.read(**kwargs)
-		return self.loads(read, **kwargs)
 		
+		generator_func = lambda: self.__tokenize_control(self.read(**kwargs))
+		final = self.__convert(generator_func, **kwargs)
+		return self.sort_keys(final) if sort_keys else final
 
 	def loads(self, inputObj, max_depth=None, sort_keys=None, **kwargs):
 		sort_keys = self.default_sort_keys if sort_keys is None else sort_keys
 		max_depth = self.default_max_depth if max_depth is None else max_depth
-		max_depth = 0 if sort_keys else max_depth
-		kwargs["max_depth"] = max_depth
-
+		kwargs["max_depth"] = 0 if sort_keys else max_depth
+		
 		final = self.__convert(lambda: self.__tokenize_control(inputObj), **kwargs)
-		final = self.sort_keys(final) if sort_keys else final
-		
-		return final
-		
-	def loader(self, path=None, encoding=None, decrypter=None, max_depth=None, **kwargs):
-		kwargs["max_depth"] = "all" if max_depth is None else max_depth
+		return self.sort_keys(final) if sort_keys else final
+
+	def loader(self, path=None, max_depth=None, encoding=None, decrypter=None, **kwargs):
 		kwargs["decrypter"] = self.default_gen_decrypter if decrypter is None else decrypter
 		kwargs["encoding"] = self.default_file_encoding if encoding is None else encoding
+		kwargs["max_depth"] = "all" if max_depth is None else max_depth
 		kwargs["path"] = self.default_path if path is None else path
-
-		read = self.read_gen(**kwargs)
-		read = self.__tokenize_control(read)
 		
-		return self.__convert(lambda: read, **kwargs)
+		generator_func = lambda: self.__tokenize_control(self.read_gen(**kwargs))
+		return self.__convert(generator_func, **kwargs)
 
 	def gen_normalizer(self, gen_func):
 		"""__convert fonksiyonun generator fonksiyonunu objeye dönüştüren fonksiyon

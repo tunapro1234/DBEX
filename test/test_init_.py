@@ -73,7 +73,7 @@ class TestMainPackage(unittest.TestCase):
 		with open(self.test_file, "w+") as file:
 			file.write(str(correct_result))
 
-		result = gen_normalize(dec.loader(self.test_file))
+		result = gen_normalize(dec.loader(path=self.test_file))
 		self.assertEqual(result, correct_result)
 
 		os.remove(self.test_file)

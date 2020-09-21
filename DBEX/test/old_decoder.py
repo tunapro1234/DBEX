@@ -618,8 +618,7 @@ class Decoder:
 		path = self.default_path if path is None else path
 		encoding = self.default_file_encoding if encoding is None else encoding
 
-		generator_func = lambda: self.__tokenize_gen(
-		 self.read_gen(path, encoding=encoding))
+		generator_func = lambda: self.__tokenize_gen(self.read_gen(path, encoding=encoding))
 		return self.__load(generator_func, max_depth=0, **kwargs)
 
 	def loads(self, string, max_depth=None, **kwargs):
