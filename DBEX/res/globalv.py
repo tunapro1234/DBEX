@@ -1,7 +1,8 @@
 def version():
-	with open("dbex/res/VERSION.txt") as file:
-		return file.read()
-
+	# with open("VERSION.txt") as file:
+	# 	return file.read()
+	version = "0.0.9"
+	return version
 
 __version__ = version()
 

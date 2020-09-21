@@ -43,12 +43,7 @@ import dbex.res.globalv as gvars
 # import time
 
 
-def version():
-	with open("dbex/res/VERSION.txt") as file:
-		return file.read()
-
-
-__version__ = version()
+__version__ = gvars.version()
 
 
 class DBEXDecodeError(ValueError):

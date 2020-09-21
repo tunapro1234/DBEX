@@ -133,3 +133,13 @@ class TestMainPackage(unittest.TestCase):
 		self.assertEqual(tester, result)
 		self.assertEqual(tester, result2)
 		# print(f"{tester}\n{result}\n{result2}")
+	
+	def test_dumps_loads(self):
+		tester = '["json bunu yapabilir mi?", "tunapro", [[]]]'
+
+		result = enc.dumps(dec.loads(tester, max_depth="all"))
+		result2 = enc.dumps(dec.loads(tester))
+
+		self.assertEqual(tester, result)
+		self.assertEqual(tester, result2)
+		print(f"{tester}\n{result}\n{result2}")

@@ -1,9 +1,6 @@
-def version():
-	with open("dbex/res/VERSION.txt") as file:
-		return file.read()
+import dbex.res.globalv as gvars
 
-
-__version__ = version()
+__version__ = gvars.version()
 
 
 def encrypter(rv, *args, **kwargs):

@@ -2,7 +2,7 @@ from setuptools import setup
 
 
 def version():
-	with open("dbex/res/VERSION.txt") as file:
+	with open("VERSION.txt") as file:
 		return file.read()
 
 

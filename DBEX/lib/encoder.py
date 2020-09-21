@@ -2,13 +2,8 @@ from dbex.lib.encryption import encrypter as defaultEncrypter_func
 import dbex.res.globalv as gvars
 import types
 
+__version__ = gvars.version()
 
-def version():
-	with open("dbex/res/VERSION.txt") as file:
-		return file.read()
-
-
-__version__ = version()
 """
 Eski encoder classı çok dağınıktı o yüzden yenisini yazıyorum ve burada biraz plan yapacağım
 elimden geldiğince Decoder için uyumlu bir şema yazmaya çalışacağım onu da yenilemeyi düşünüyorum
@@ -211,7 +206,7 @@ class Encoder:
 		str_indent = " " * indent
 
 		# yapf: disable
-		comma, colon = seperators[0].rstrip() if indent else seperators[0], seperators[1]
+		comma = seperators[0].rstrip() if indent else seperators[0]
 
 		kwargs["seperators"] = seperators
 		kwargs["max_depth"] = max_depth
