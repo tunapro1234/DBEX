@@ -39,7 +39,8 @@ hadi başlayalım
 
 # from dbex.lib.encryption import decrypter
 import dbex.res.globalv as gvars
-# import types, time
+# import types
+# import time
 
 
 def version():
@@ -325,7 +326,7 @@ class Decoder:
 				# yapf: disable
 				return (i for i in self.__convert_list(new_gen_func, tuple_mode=True, **kwargs))
 
-			return tuple(self.gen_normalizer(tuple_gen))
+			return self.gen_normalizer(tuple_gen)
 			# return_func = tuple_gen
 
 
@@ -395,7 +396,6 @@ class Decoder:
 				if element in "[{(":
 					type = "()" if tuple_mode else "[]"
 					index = self.__find_next_closing(gen, index=index, type=type)
-					# element, index = next(gen), index+1
 
 				lui+=1
 
@@ -413,23 +413,46 @@ class Decoder:
 		# aktif olarak döndürülecek hangi değere yazığımız, key ya da valueya yazdığımızı gösteriyor
 		# eğer keye yazmaya çalışıyorsak 0, valueya yazmaya çalışıyorsak 1
 		cursor = 0 
-		
-		cur_value = ()
+		cur_value = []
+		err_closing = ")]"
 		for element in gen:
-			# self.__convert(generator_func, index=index, **kwargs)
-			# index = self.__find_next_closing(gen, index=index, type=type) if element in "[{(" else index
+			if element.strip() == "}":
+				if len(cur_value) == 2:
+					yield tuple(cur_value)
+				if len(cur_value) not in [0, 2]:
+    					raise DBEXDecodeError("Not Implemented", 0)
+				break
 			
-			if element.strip() == ":":
-    				
+			elif element in err_closing:
+    				raise DBEXDecodeError("Not Implemented", 0)
+
+			elif element.strip() == ":":
 				if len(cur_value) == 1:
-					pass
+					cursor = 1
 				else:
-    				raise DBEXDecodeError
+					raise DBEXDecodeError("Not Implemented", 0)
 
 			elif element.strip() == ",":
-				yield cur_value
-				cur_value = ()
+				if len(cur_value) != 2:
+	 				raise DBEXDecodeError("Not Implemented", 0)
 				
+				yield tuple(cur_value)
+				cur_value, cursor = [], 0
+				
+			else:
+				converted_element = self.__convert(generator_func, index=index, **kwargs)
+				index = self.__find_next_closing(gen, index=index, type="{}") if element in "[{(" else index
+				
+				# eğer key yazıyorsak ve gelen eleman dict ya da list ise hata verdir
+				if (cursor == 0 and len(cur_value) == 0) and (
+					type(converted_element) in [list, dict] or (callable(converted_element) and converted_element.__name__ in ["list_gen", "dict_gen"])):
+					raise DBEXDecodeError("Not Implemented", 0)
+				
+				cur_value.append(converted_element)
+				# if len(cur_value) == 2:
+				# 	yield tuple(cur_value)
+				
+
 			index = index + 1
 
 
@@ -462,14 +485,41 @@ class Decoder:
 
 		raise DBEXDecodeError("parantezin kapanisi bulanamadi", 0)
 
-	def dump(self):
-		pass
+	def load(self, path=None, sort_keys=None, encoding=None, decrypter=None, **kwargs):
+		kwargs["decrypter"] = self.default_gen_decrypter if decrypter is None else decrypter
+		kwargs["encoding"] = self.default_file_encoding if encoding is None else encoding
+		kwargs["path"] = self.default_path if path is None else path
+		sort_keys = self.default_sort_keys if sort_keys is None else sort_keys
 
-	def dumps(self):
-		pass
+		read = self.read(**kwargs)
+		read = self.__tokenize_control(read)
+		
+		outputObj = self.__convert(lambda: read, max_depth=0, **kwargs)
+		outputObj = self.sort_keys(outputObj) if sort_keys else outputObj
+		
+		return outputObj
 
-	def dumper(self):
-		pass
+	def loads(self, inputObj, max_depth=None, sort_keys=None, **kwargs):
+		sort_keys = self.default_sort_keys if sort_keys is None else sort_keys
+		max_depth = self.default_max_depth if max_depth is None else max_depth
+		max_depth = 0 if sort_keys else max_depth
+		kwargs["max_depth"] = max_depth
+
+		final = self.__convert(lambda: self.__tokenize_control(inputObj), **kwargs)
+		final = self.sort_keys(final) if sort_keys else final
+		
+		return final
+		
+	def loader(self, path=None, encoding=None, decrypter=None, max_depth=None, **kwargs):
+		kwargs["max_depth"] = "all" if max_depth is None else max_depth
+		kwargs["decrypter"] = self.default_gen_decrypter if decrypter is None else decrypter
+		kwargs["encoding"] = self.default_file_encoding if encoding is None else encoding
+		kwargs["path"] = self.default_path if path is None else path
+
+		read = self.read_gen(**kwargs)
+		read = self.__tokenize_control(read)
+		
+		return self.__convert(lambda: read, **kwargs)
 
 	def gen_normalizer(self, gen_func):
 		"""__convert fonksiyonun generator fonksiyonunu objeye dönüştüren fonksiyon
@@ -499,7 +549,7 @@ class Decoder:
 				else:
 					final[key] = value
 
-		return final
+		return tuple(final) if gen_func.__name__ == "tuple_gen" else final
 
 	def read(self,
 	   path=None,

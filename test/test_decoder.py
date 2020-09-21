@@ -1,4 +1,5 @@
 from dbex.test.new_decoder import Decoder as newDecoder
+from dbex.test.new_decoder import DBEXDecodeError
 from dbex.lib.decoder import Decoder
 import unittest
 # import time
@@ -62,6 +63,198 @@ class TestNewDecoder(unittest.TestCase):
 		import os
 		os.remove(self.test_file)
 
+##### COMPABILITY
+
+	def test_json_comp(self):
+		import json
+		tester = '[true, false, null, Infinity, -Infinity]'
+
+		# result = dec.loads(tester)
+		result = dec._Decoder__convert(lambda: dec._Decoder__tokenize_control(tester))
+		correct_result = json.loads(tester)
+
+		self.assertEqual(result, correct_result)
+
+	def test_NaN(self):
+		tester = "NaN"
+		# result = dec.loads("NaN")
+		result = dec._Decoder__convert(lambda: dec._Decoder__tokenize_control(tester))
+		self.assertNotEqual(result, result)
+
+##### TOKENIZERS
+
+	def test_tokenize(self):
+		tester = '["tunapro", [[]], [[]], [[0, "[\\]"]]]'
+		correct_result = [
+			'[', '"', 'tunapro', '"', ',', ' ', '[', '[', ']', ']', ',', ' ',
+			'[', '[', ']', ']', ',', ' ', '[', '[', '0', ',', ' ', '"', '[',
+			'\\', ']', '"', ']', ']', ']'
+		]
+
+		result = gen_to_list(dec._Decoder__tokenize(tester))
+		self.assertEqual(result, correct_result)
+
+		result = gen_to_list(dec._Decoder__tokenize((i for i in tester)))
+		self.assertEqual(result, correct_result)
+
+	def test_tokenize_control(self):
+		tester = '["tunapro", [[]], [[]], [[0, "[\\]"]]]'
+		correct_result = [
+		 '[', '"tunapro"', ',', '[', '[', ']', ']', ',', '[', '[', ']', ']',
+		 ',', '[', '[', '0', ',', '"[\\]"', ']', ']', ']'
+		]
+
+		result = old_dec._Decoder__tokenize_gen(tester)
+		if isinstance(result, types.GeneratorType):
+			result = gen_to_list(result)
+
+		self.assertEqual(result, correct_result)
+
+##### GEN NORMALIZER
+	def test_gen_normalizer_dict(self):
+		def dict_gen():
+			return (i for i in {"t": "tt"}.items())
+
+		tester = {"a": "aa", "b": "bb", "gen": dict_gen}
+
+		def dict_gen():
+			return (i for i in tester.items())
+
+		result = dec.gen_normalizer(dict_gen)
+
+		correct_result = {"a": "aa", "b": "bb", "gen": {"t": "tt"}}
+
+		self.assertEqual(result, correct_result)
+
+	def test_gen_normalizer_list(self):
+		def list_gen():
+			return (i for i in [0, 1])
+
+		tester = [0, 1, 2, 3, 4, list_gen]
+
+		def list_gen():
+			return (i for i in tester)
+
+		result = dec.gen_normalizer(list_gen)
+		correct_result = [0, 1, 2, 3, 4, [0, 1]]
+		self.assertEqual(result, correct_result)
+
+##### TEST LOAD...
+
+	def test_load(self):
+		tester = "['tunapro', (()), [[]], [[0, '[\\]']], None]"
+		correct_result = ["tunapro", ((), ), [[]], [[0, "[\\]"]], None]
+
+		path = "dbex/test/test.dbex"
+		with open(path, "w+") as file:
+			file.write(tester)
+
+		result = dec.load(path)
+		self.assertEqual(result, correct_result)
+
+	def test_loads(self):
+		# correct_result = ["tunapro", ((), )]
+		correct_result = ["tunapro", ((), ), [[]], [[0, "[\\]"]]]
+		# correct_result = ['"tunapro"', [[]], [[]], [[0, '"[\\]"']]]
+		tester = str(correct_result)
+		
+		result = dec.loads(tester)
+		self.assertEqual(result, correct_result)
+
+###### CONVERT DICT
+
+	def test_convert_dict_1(self):
+		correct_result = {'a':'aa', 'b':'bb', 'c':'cc'}
+		result = dec._Decoder__convert(lambda: dec._Decoder__tokenize_control(str(correct_result)))
+		
+		self.assertEqual(result, correct_result)
+
+	def test_convert_dict_2(self):
+		with self.assertRaises(DBEXDecodeError):
+			# yapf: disable
+			tester = [
+			 "{", 
+			 	"'a'", ":", "'aa'", 
+				 ":", "'aa'", ",", 
+				 "'b'", ":", "'bb'", 
+			 "}"]
+			
+			result = dec._Decoder__convert(lambda: (i for i in tester))
+			# yapf: enable
+		###
+		with self.assertRaises(DBEXDecodeError):
+			# virgülsüz
+			tester = ["{", "'a'", ":", "'aa'", "'b'", ":", "'bb'", "}"]
+
+			# yapf: disable
+			result = dec._Decoder__convert(lambda: (i for i in tester))
+		###
+		# yapf: disable
+		# tester = [ "{",
+		# 	"'a'", ":", "'aa'", ",",
+		# 	"None", ":", "'none'", ",",
+		# 	"\"True\"", ":", "'true'", ",",
+		# 	"0.3", ":", "'0.3'", ",",
+		# 	"True", ":", "'true'", ",",
+		# 	"(", ")", ":", "False", 
+		#    "}" ]
+
+		# correct_result = {'a':'aa', None:'none', "True":'true', 0.3:'0.3', True:'true', ():False}
+		# result = dec._Decoder__convert(dec._Decoder__tokenize_control(str(correct_result)))
+		# self.assertEqual(result, correct_result)
+
+	def test_convert_dict_recur(self):
+		correct_result = {"a": 1, "b": 2, "c": {"3": 4}}
+		tester = '{"a": 1, "b": 2, "c": {"3": 4}}'
+		result = dec._Decoder__convert(lambda: dec._Decoder__tokenize_control(tester))
+		self.assertEqual(result, correct_result)
+
+	def test_convert_dict_recur_2(self):
+		correct_result = {"gen2":{():{}}}
+		tester = str(correct_result)
+
+		result = dec._Decoder__convert(lambda: dec._Decoder__tokenize_control(tester))
+
+		self.assertEqual(result, correct_result)
+
+###### CONVERT OBJ
+
+	def test_convert_obj(self):
+		self.assertEqual(dec._Decoder__convert_obj("None"), None)
+		self.assertEqual(dec._Decoder__convert_obj("1234"), 1234)
+		self.assertEqual(dec._Decoder__convert_obj("True"), True)
+		self.assertEqual(dec._Decoder__convert_obj("False"), False)
+		self.assertEqual(dec._Decoder__convert_obj("12.34"), 12.34)
+
+		self.assertEqual(dec._Decoder__convert_obj('"Tunapro1234"'), "Tunapro1234")
+		self.assertEqual(dec._Decoder__convert_obj("'Tunapro1234'"), "Tunapro1234")
+
+	def test_convert_obj_json_comp(self):
+		self.assertEqual(dec._Decoder__convert_obj("null"), None)
+		self.assertEqual(dec._Decoder__convert_obj("true"), True)
+		self.assertEqual(dec._Decoder__convert_obj("false"), False)
+
+##### CONVERT LIST 
+
+	def test_convert_list(self):
+		tester = '["false", True, [1, 2, 3, []]]'
+		correct_result = ["false", True, [1, 2, 3, []]]
+
+		result = dec.loads(tester)
+		# result = dec._Decoder__convert(lambda: dec._Decoder__tokenize_control(tester))
+
+		self.assertEqual(result, correct_result)
+	
+	def test_convert_tuple(self):
+		tester = '("false", True, (1, 2, 3, ()))'
+		correct_result = ("false", True, (1, 2, 3, ()))
+
+		result = dec._Decoder__convert(lambda: dec._Decoder__tokenize_control(tester))
+
+		self.assertEqual(result, correct_result)
+
+##### READ 
+
 	def test_read(self):
 		tester = "['tunapro']"
 		with open(self.test_file, "w+") as file:
@@ -77,6 +270,10 @@ class TestNewDecoder(unittest.TestCase):
 
 		result = "".join([i for i in dec.read_gen(self.test_file)])
 		self.assertEqual(tester, result)
+		
+		if not isinstance(old_dec.read_gen(self.test_file), types.GeneratorType):
+			self.assertEqual(False, True)
+			# Haha
 
 	def test_read_gen_safe(self):
 		tester = "['tunapro']"
@@ -85,208 +282,3 @@ class TestNewDecoder(unittest.TestCase):
 
 		result = "".join([i for i in dec.read_gen_safe(self.test_file)])
 		self.assertEqual(tester, result)
-
-	def test_convert_list(self):
-		tester = '["false", True, [1, 2, 3, []]]'
-		correct_result = ["false", True, [1, 2, 3, []]]
-
-		result = dec._Decoder__convert(lambda: dec._Decoder__tokenize_control(tester))
-
-		self.assertEqual(result, correct_result)
-	
-	def test_convert_tuple(self):
-		tester = '("false", True, (1, 2, 3, ()))'
-		correct_result = ("false", True, (1, 2, 3, ()))
-
-		result = dec._Decoder__convert(lambda: dec._Decoder__tokenize_control(tester))
-
-		self.assertEqual(result, correct_result)
-
-	def test_convert_dict(self):
-		correct_result = {"a": 1, "b": 2, "c": {"3": 4}}
-		tester = '{"a": 1, "b": 2, "c": {"3": 4}}'
-
-		result = dec._Decoder__convert(lambda: dec._Decoder__tokenize_control(tester))
-
-		self.assertEqual(result, correct_result)
-
-
-class TestDecoder(unittest.TestCase):
-	def test_gen_normalizer_dict(self):
-		def dict_gen():
-			return (i for i in {"t": "tt"}.items())
-
-		tester = {"a": "aa", "b": "bb", "gen": dict_gen}
-
-		def dict_gen():
-			return (i for i in tester.items())
-
-		result = old_dec.gen_normalizer(dict_gen)
-
-		correct_result = {"a": "aa", "b": "bb", "gen": {"t": "tt"}}
-
-		self.assertEqual(result, correct_result)
-
-	def test_gen_normalizer_list(self):
-		def list_gen():
-			return (i for i in [0, 1])
-
-		tester = [0, 1, 2, 3, 4, list_gen]
-
-		def list_gen():
-			return (i for i in tester)
-
-		result = old_dec.gen_normalizer(list_gen)
-		correct_result = [0, 1, 2, 3, 4, [0, 1]]
-		self.assertEqual(result, correct_result)
-
-	def test_tokenize(self):
-		tester = '["tunapro", [[]], [[]], [[0, "[\\]"]]]'
-		correct_result = [
-			'[', '"', 'tunapro', '"', ',', ' ', '[', '[', ']', ']', ',', ' ',
-			'[', '[', ']', ']', ',', ' ', '[', '[', '0', ',', ' ', '"', '[',
-			'\\', ']', '"', ']', ']', ']'
-		]
-
-		result = gen_to_list(old_dec._Decoder__tokenize(tester))
-		self.assertEqual(result, correct_result)
-
-		result = gen_to_list(old_dec._Decoder__tokenize((i for i in tester)))
-		self.assertEqual(result, correct_result)
-
-	def test_json_comp(self):
-		import json
-		tester = '[true, false, null, Infinity, -Infinity]'
-
-		result = old_dec.loads(tester)
-		correct_result = json.loads(tester)
-
-		self.assertEqual(result, correct_result)
-
-	def test_NaN(self):
-		result = old_dec.loads("NaN")
-		self.assertNotEqual(result, result)
-
-	def test_loads(self):
-		tester = '["tunapro", (()), [[]], [[0, "[\\]"]]]'
-		correct_result = ["tunapro", ((), ), [[]], [[0, "[\\]"]]]
-		# correct_result = ['"tunapro"', [[]], [[]], [[0, '"[\\]"']]]
-
-		result = old_dec.loads(tester)
-		self.assertEqual(result, correct_result)
-
-	def test_load__(self):
-		# yapf: disable
-		tester = '[', '"tunapro"', ',', '(', '(', ')', ',', ')', ',', '[', '[', ']', ']', ',', '[', '[', '0', ']', ']', ']'
-		correct_result = ["tunapro", ((), ), [[]], [[0]]]
-		generator_func = lambda: (i for i in tester)
-
-		result = old_dec._Decoder__load(generator_func, max_depth=0)
-		self.assertEqual(result, correct_result)
-
-	def test_load(self):
-		tester = "['tunapro', (()), [[]], [[0, '[\\]']], None]"
-		correct_result = ["tunapro", ((), ), [[]], [[0, "[\\]"]], None]
-
-		path = "dbex/test/test.dbex"
-		with open(path, "w+") as file:
-			file.write(tester)
-
-		result = old_dec.load(path)
-		self.assertEqual(result, correct_result)
-
-	def test_tokenize_gen(self):
-		tester = '["tunapro", [[]], [[]], [[0, "[\\]"]]]'
-		correct_result = [
-		 '[', '"tunapro"', ',', '[', '[', ']', ']', ',', '[', '[', ']', ']',
-		 ',', '[', '[', '0', ',', '"[\\]"', ']', ']', ']'
-		]
-
-		result = old_dec._Decoder__tokenize_gen(tester)
-		if isinstance(result, types.GeneratorType):
-			result = gen_to_list(result)
-
-		self.assertEqual(result, correct_result)
-
-	def test_read_gen(self):
-		path = "dbex/test/test.dbex"
-		with open(path, "w+", encoding="utf-8") as file:
-			correct_result = file.read()
-
-		result = "".join([i for i in old_dec.read_gen(path)])
-		self.assertEqual(result, correct_result)
-
-		if not isinstance(old_dec.read_gen(path), types.GeneratorType):
-			# Haha
-			self.assertEqual(False, True)
-
-	def test_convert(self):
-		self.assertEqual(old_dec._Decoder__convert("None"), None)
-		self.assertEqual(old_dec._Decoder__convert("1234"), 1234)
-		self.assertEqual(old_dec._Decoder__convert("True"), True)
-		self.assertEqual(old_dec._Decoder__convert("False"), False)
-		self.assertEqual(old_dec._Decoder__convert("12.34"), 12.34)
-
-		self.assertEqual(old_dec._Decoder__convert("null"), None)
-		self.assertEqual(old_dec._Decoder__convert("true"), True)
-		self.assertEqual(old_dec._Decoder__convert("false"), False)
-
-		self.assertEqual(old_dec._Decoder__convert('"Tunapro1234"'), "Tunapro1234")
-		self.assertEqual(old_dec._Decoder__convert("'Tunapro1234'"), "Tunapro1234")
-
-	def test_init_dict_gen(self):
-		with self.assertRaises(Exception):
-			# ::
-			tester = [
-			 "{", "'a'", ":", "'aa'", ":", "'aa'", ",", "'b'", ":", "'bb'",
-			 "}"
-			]
-
-			result = old_dec._Decoder__init_dict_gen(lambda:
-					 (i for i in tester[1:]))
-			result = gen_normalizer(result)
-		###
-		with self.assertRaises(Exception):
-			# virgülsüz
-			tester = ["{", "'a'", ":", "'aa'", "'b'", ":", "'bb'", "}"]
-
-			result = old_dec._Decoder__init_dict_gen(lambda:
-					 (i for i in tester[1:]))
-			result = gen_normalizer(result)
-		###
-		# yapf: disable
-		tester = [ "{",
-			"'a'", ":", "'aa'", ",",
-			"None", ":", "'none'", ",",
-			"\"True\"", ":", "'true'", ",",
-			"0.3", ":", "'0.3'", ",",
-			"True", ":", "'true'", ",",
-			"(", ")", ":", "False", # YARIN BURAYA Bİ GÖZ AT
-		   "}" ]
-
-		correct_result = {'a':'aa', None:'none', "True":'true', 0.3:'0.3', True:'true', ():False}
-		def dict_gen():
-			return old_dec._Decoder__init_dict_gen(lambda: (i for i in tester[1:]))
-		result = gen_normalizer(dict_gen)
-		self.assertEqual(result, correct_result)
-
-
-	def test_init_dict_gen_recur(self):
-		tester = [ "{",
-			"'gen'", ":", "{", "'b'", ":", "'bb'", "}", ",",
-			"'gen2'", ":", "{", "(", ")", ":", "{", "}", "}",
-		   "}" ]
-
-		correct_result = {'gen': {'b': 'bb'}, 'gen2': {(): {}}}
-
-		def dict_gen():
-			return old_dec._Decoder__init_dict_gen(lambda: (i for i in tester[1:]))
-		result = gen_normalizer(dict_gen)
-
-		self.assertEqual(result, correct_result)
-
-	# def test_sort_keys(self):
-
-
-	def test_header(self):
-		self.assertEqual(1, 1)
