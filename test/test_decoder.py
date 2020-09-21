@@ -1,6 +1,5 @@
-from dbex.test.new_decoder import Decoder as newDecoder
-from dbex.test.new_decoder import DBEXDecodeError
 from dbex.lib.decoder import Decoder
+from dbex.lib.decoder import DBEXDecodeError
 import unittest
 # import time
 import types
@@ -48,11 +47,10 @@ def gen_normalizer(gen_func):
 	return final
 
 
-old_dec = Decoder()
-dec = newDecoder()
+dec = Decoder()
 
 
-class TestNewDecoder(unittest.TestCase):
+class TestDecoder(unittest.TestCase):
 	test_file = "dbex/test/TestNewDecoder.dbex"
 
 	def setUp(self):
@@ -104,7 +102,7 @@ class TestNewDecoder(unittest.TestCase):
 		 ',', '[', '[', '0', ',', '"[\\]"', ']', ']', ']'
 		]
 
-		result = old_dec._Decoder__tokenize_gen(tester)
+		result = dec._Decoder__tokenize_control(tester)
 		if isinstance(result, types.GeneratorType):
 			result = gen_to_list(result)
 
@@ -274,7 +272,7 @@ class TestNewDecoder(unittest.TestCase):
 		result = "".join([i for i in dec.read_gen(self.test_file)])
 		self.assertEqual(tester, result)
 		
-		if not isinstance(old_dec.read_gen(self.test_file), types.GeneratorType):
+		if not isinstance(dec.read_gen(self.test_file), types.GeneratorType):
 			self.assertEqual(False, True)
 			# Haha
 

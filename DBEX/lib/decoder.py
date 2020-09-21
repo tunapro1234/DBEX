@@ -1,6 +1,46 @@
-from dbex.lib.encryption import decrypter
+"""
+Evveettt dün 10 saat uğraşıp baştan yazdığım encoder classına yaptığım geliştirmeyi decoder classına da yapma zamanı geldi
+sonra köle gibi yorumlamam gerekiyor
+sonra encryptor 
+sonra header
+pff çok iş var
+
+
+planım neredeyse new_encoder ile aynı olacak 
+__convert ->    __router ->     __convert_list | -> __convert
+						|->     __convert_dict |
+
+__find_next_closing, gen_normalizer ve read şeyleri de lazım
+
+__convert ve altındaki tüm fonksiyonlar generator olacak
+şu anki decoderdaki tokenize ve tokenize_gen muhtemelen aynı kalır
+
+Burada küçük bir planlama hatası yapmışım __convert __convert_obj ve __router 
+generator olmayacak, __router generator function döndürdüğü için convert de normal olabiliyor
+
+
+gen_normalizer ile çevirme load... fonksiyonlarında yapılacak
+
+	convert generator döndüren fonksiyon alıyor onu routera atıyor router 
+içinde generator kısıtlanıp fonksiyonla wrapplanip convert_listlere filan gönderiliyor
+
+ama convert objeleri nasıl dönecek
+__convert(lambda: (__tokenize_gen(__tokenize(string or generator))))
+normalde __load ilk elemana bakıp yolluyordu biz de o tarz bir şey yapabilirz
+__convert yerine __main yapsam main içinden __converte atsa daha hoş olur
+
+düznlenmiş hali:
+gen_normalizer(__convert(__tokenize_control(__tokenize(read_gen()))))
+tabii tokenize_control fonksiyonu kendi içinde __tokenize fonksiyonunu çağırıyorr o yüzden çağırmam gerek yoktu
+
+__convert_obj yaptım
+hadi başlayalım
+"""
+
+# from dbex.lib.encryption import decrypter
 import dbex.res.globalv as gvars
-import types, time
+# import types
+# import time
 
 
 def version():
@@ -33,25 +73,32 @@ class Decoder:
 
 	def __init__(self,
 				 header=True,
-				 encryption=None,
 				 default_path=None,
+				 json_compability=1,
 				 default_max_depth=0,
 				 database_shape=None,
 				 default_sort_keys=0,
 				 encryption_pass=None,
-				 default_header_path=None,
 				 changed_file_action=0,
+				 default_decrypter=None,
+				 default_header_path=None,
 				 default_file_encoding="utf-8"):
+
 		self.default_file_encoding = default_file_encoding
 		self.changed_file_action = changed_file_action
 		self.default_header_path = default_header_path
+		self.default_decrypter = default_decrypter
 		self.default_sort_keys = default_sort_keys
-		self.encryption_pass = encryption_pass
 		self.default_max_depth = default_max_depth
+		self.json_compability = json_compability
+		self.encryption_pass = encryption_pass
 		self.database_shape = database_shape
 		self.default_path = default_path
-		self.encryption = encryption
 		self.header = header
+
+		self.default_gen_decrypter = None
+		if self.default_decrypter is not None and self.default_decrypter.gen_support:
+			self.default_gen_decrypter = self.default_decrypter
 
 	def __tokenize(self, string, tokenizers=None):
 		"""Verilen tokenizerları verilen string (ya da generator) 
@@ -90,7 +137,7 @@ class Decoder:
 		if ending_index != last_token_index:
 			yield temp
 
-	def __tokenize_gen(self, reader_gen, tokenizers=None):
+	def __tokenize_control(self, reader_gen, tokenizers=None):
 		"""her ne kadar __tokenize fonksiyonunda tokenlara ayırmış olsak da 
 		tırnak işaretlerinin lanetine yakalanmaktan kurtulmak için bu fonksiyonu kullanıyoruz
 
@@ -157,17 +204,23 @@ class Decoder:
 						#   İlk başta .tags ve .data şeylerine sahip
 						# olan bir class açmıştım ama şu an gereksiz görüyorum
 
+						# Proje ne kadar uzadı be
+						# Bu satıları kaç ay önce yazmıştım :-(
+
 				elif part == "\\":
 					# Lanet olası şey
 					if is_string:
+
 						# Önceki bu değilse anlam kazansın
 						# Buysa anlamını yitirisin (\\ girip \ yazması için filan)
-						is_prv_bs = bool(1 - is_prv_bs)
-						active_str.append("\\")
+						if not is_prv_bs:
+							active_str.append("\\")
 
-						# oysa ki seni kullanmayı çok isterdim
-						# if (is_prv_bs := bool(1 - is_prv_bs)):
-						#     active_str.append("\\")
+						# Tersine çevir
+						is_prv_bs = bool(1 - is_prv_bs)
+						# lan ben bu değişkeni neden kullanmamışım
+						# haydaaa neyse hallettim
+
 					else:
 						# String dışında kullanmak yasak
 						raise DBEXDecodeError(
@@ -181,36 +234,141 @@ class Decoder:
 				if is_string:
 					active_str.append(part)
 
+				# boşluklar eleniyor
 				elif part.strip() != "":
 					yield part
 
 			errpos += len(part)
 
-	def __init_list_gen(self,
-						t_gen_func,
-						tuple_mode=False,
-						max_depth=None,
-						gen_lvl=1):
-		"""[ görüldüğünde çağırılan fonksiyon
+	def __convert(self,
+				  generator_func,
+				  index=0,
+				  max_depth=None,
+				  gen_lvl=0,
+				  **kwargs):
+		"""Verilen objenin nereye gideceğini yönlendiriyor ve generator
 
 		Args:
-			t_gen_func (function): generator döndüren fonksiyon
-			tuple_mode (bool): tuple mı olacak list mi (kapanış belli olsun diye). Defaults to False.
-
-		Raises:
-			Exception: Syntax Errorleri
-
+			inputObj (function): generator döndüren fonksiyon
+			index (int): generator functionun döndürdüğü generatora göre kaçıncı elementte olduğumuz gibi bir şey
+			max_depth (int): Hangi derinliğe kadar generator olacağı. Defaults to class default.
+			gen_lvl (elleme): kaçıncı derinlikte recursion yaptığımızı anlamak için
+		
 		Yields:
-			Her tipten şey döndürüyor. Ama parantez açma tarzı bir şey çıkarsa generator döndüren fonksiyon döndürüyor 
+			objenin çevrilmiş hali
 		"""
-		# gereksiz ama koymakta fayda var
-		max_depth = self.default_max_depth if max_depth is None else max_depth
 
-		t_gen = t_gen_func()
-		# son kullanılan index
+		# yapf: disable
+		kwargs["max_depth"] = max_depth = self.default_max_depth if max_depth is None else max_depth
+		kwargs["gen_lvl"] = gen_lvl + 1
+
+		gen = generator_func()  # fonksiyondan bir tane generaotr koparıyoruz
+		# element, index = next(gen), index+1 # sonraki elemana geçildi ve index de arttırıldı
+
+		element, i = next(gen), 0  # 0. eleman çıkarıldı ve index değeri verildi
+		while i < index:  # elemtimiz verilen indexteki element oluyor
+			element, i = next(gen), i + 1
+
+		if element in "[{(":
+			# yapf: disable
+			return self.__router(element, gen, generator_func, index=index, **kwargs)
+
+		else:
+			return self.__convert_obj(element)
+
+		# try:
+		# 	next(gen)
+		# except StopIteration:
+		# 	return rv
+		# else:
+		# 	raise DBEXDecodeError("Can convert up to 1 object only", 0)
+
+	def __router(self,
+		element,
+		gen,
+		generator_func,
+		index=0,
+		max_depth=None,
+		gen_lvl=1,
+		**kwargs):
+		# yapf: disable
+		kwargs["max_depth"] = max_depth = self.default_max_depth if max_depth is None else max_depth
+		kwargs["gen_lvl"] = gen_lvl
+		return_func = None
+
+		if element == "[":
+			next_closing = self.__find_next_closing(gen, index=index, b_type="[]")
+			new_gen_func = lambda: (j for i, j in enumerate(generator_func()) if index < i <= next_closing)
+
+			def list_gen():
+				# convert_liste yeni generator_func verdiğimiz için index vermemiz gerekmiyor
+				return (i for i in self.__convert_list(new_gen_func, **kwargs))
+
+			return_func = list_gen
+
+		elif element == "{":
+			next_closing = self.__find_next_closing(gen, index=index, b_type="{}")
+			new_gen_func = lambda: (j for i, j in enumerate(generator_func())
+				  if index < i <= next_closing)
+
+			def dict_gen():
+				# yapf: disable
+				return (i for i in self.__convert_dict(new_gen_func, **kwargs))
+
+			return_func = dict_gen
+
+		elif element == "(":
+			next_closing = self.__find_next_closing(gen, index=index, b_type="()")
+			new_gen_func = lambda: (j for i, j in enumerate(generator_func())
+				  if index < i <= next_closing)
+
+			def tuple_gen():
+				# yapf: disable
+				return (i for i in self.__convert_list(new_gen_func, tuple_mode=True, **kwargs))
+
+			return self.gen_normalizer(tuple_gen)
+			# return_func = tuple_gen
+
+
+		if (max_depth == "all" or gen_lvl < max_depth):
+			return return_func
+
+		else:
+			return self.gen_normalizer(return_func)
+
+	def __convert_obj(self, element, json_compability=True):
+		element = element.strip()
+
+		if json_compability:
+			if element == "null":
+				return None
+			elif element in ["true", "false"]:
+				return True if element == "true" else False
+
+		if element.isdigit():
+			return int(element)
+		
+		elif element[0] in "\"'" and element[-1] in "\"'" and element[0] == element[-1]:
+			return element[1:-1]
+
+		elif element in ["None"]:
+			return None
+
+		# yapf: disable
+		elif element.replace('.', '', 1).isdigit() or element in ["Infinity", "-Infinity", "NaN"]:
+			return float(element)
+
+		elif element in ["True", "False"]:
+			return True if element == "True" else False
+
+		else:
+			raise DBEXDecodeError(
+			 f"Undefined keyword : [{element}]", 0)
+
+	def __convert_list(self, generator_func, tuple_mode=False, **kwargs):
+		gen = generator_func()
+
 		lui = -1
-
-		# list cursorı
 		ci = 0
 
 		# Parantez kapatma değişkeni
@@ -218,472 +376,178 @@ class Decoder:
 		# İstemediğimiz parantez kapatma şekilleri
 		err_closing = "".join([i for i in "]})" if i != closing])
 
-		index = -1
-		for part in t_gen:
-			index += 1
-			# Eğer tokensa
-			if part in "[{(\\,:\"')}]":
-				# Buralar çok değişti en son yazmak en mantıklısıymış
-				# Hangi tür olduğuna göre fonksiyon çağır
-				if part in "[{(":
-					if (ci - 1) == lui:
-						if part == "[":
-							next_closing = self.__find_next_closing(
-								t_gen, index, "[]")
-							new_gen_func = lambda: (j for i, j in enumerate(
-								t_gen_func()) if index < i <= next_closing)
+		index = 0
+		for element in gen:
+			if element.strip() == ",":
+				ci += 1
 
-							def list_gen():
-								return (i for i in self.__init_list_gen(
-									new_gen_func,
-									max_depth=max_depth,
-									gen_lvl=gen_lvl + 1))
+			elif element.strip() == closing:
+				# Buraya hiç girilmiyor (çünkü __router parantez kapatmayı generator_function içine dahil etmiyor)
+				# yine de yazmakta fayda var
+				break
+			
+			elif element.strip() in err_closing:
+				raise DBEXDecodeError("Yanlis parantez kapatma: ['{element}']", code=0)
+					
+			elif (ci - 1) == lui:
+				yield self.__convert(generator_func, index=index, **kwargs)
+				
+				# index arttırma
+				if element in "[{(":
+					b_type=None
+					if element == "(":
+						b_type = "()"
+					elif element == "[":
+						b_type = "[]"
+					elif element == "{":
+						b_type = "{}"
+					index = self.__find_next_closing(gen, index=index, b_type=b_type)
 
-							if max_depth == "all" or gen_lvl < max_depth:
-								yield list_gen
-							else:
-								yield self.gen_normalizer(list_gen)
+				lui+=1
 
-							index = next_closing
-
-						elif part == "{":
-							next_closing = self.__find_next_closing(
-								t_gen, index, "{}")
-							new_gen_func = lambda: (j for i, j in enumerate(
-								t_gen_func()) if index < i <= next_closing)
-
-							def dict_gen():
-								return (i for i in self.__init_dict_gen(
-									new_gen_func,
-									max_depth=max_depth,
-									gen_lvl=gen_lvl + 1))
-
-							if max_depth == "all" or gen_lvl < max_depth:
-								yield dict_gen
-							else:
-								yield self.gen_normalizer(dict_gen)
-
-							index = next_closing
-
-						elif part == "(":
-							next_closing = self.__find_next_closing(
-								t_gen, index, "()")
-							new_gen_func = lambda: (j for i, j in enumerate(
-								t_gen_func()) if index < i <= next_closing)
-
-							def tuple_gen():
-								return (i for i in self.__init_list_gen(
-									new_gen_func, tuple_mode=1, max_depth=0))
-
-							yield tuple(self.gen_normalizer(tuple_gen))
-							index = next_closing
-
-						else:
-							raise DBEXDecodeError(
-								"Teknik olarak bu yazıyı okuyor olman mümkün değil",
-								code=-3)
-
-						# last used index -> lui
-						# current index -> ci
-
-						#   İçinde bulunduğumuz listenin
-						# kullandığımız indexinin kullanılmış olduğunu belirtiyoruz
-						lui = ci
-						#   ki virgül koymadan yeni bir indexe atlamasın
-						# işte virgül koyunca ci yi bir arttırıyoruz sonra ikisi farklı oluyor filan
-
-					else:
-						# virgül koymadan yeni eleman eklenemiyor
-						raise DBEXDecodeError(
-							"Virgül koymadan yeni eleman eklenemez", code=20)
-
-				elif part == closing:
-					# kapatıyorsan kapat
-					break
-
-				elif part == ",":
-					# Current indexi arttır ki
-					ci += 1
-					# son kullanılmış olanla aynı olmasın
-
-				elif part in err_closing:
-					# Yanlış kapatma
-					raise DBEXDecodeError("Yanlış parantez kapatma ( ]} )",
-										  code=21)
-					# Zaten kesin daha önce syntax error döndürür
-
-			# Aktif parça token değilse
 			else:
-				# Virgül koyulup yeni yer açılmışsa
-				if (ci - 1) == lui:
-					# ekle işte
-					yield self.__convert(part)
-					# luici kesinlikle kasıtlı değildi
-					lui = ci
-					# Yukarda demiştim zaten işte
-					# Kullanıldığını belirtme filan
-				else:
-					# lui ile ci farklı olmazsa virgül koyulmadığını anlıyor
-					raise DBEXDecodeError(
-						"Virgül koymadan yeni eleman eklenemez", code=22)
-
-	def __init_dict_gen(self, t_gen_func, max_depth=None, gen_lvl=1):
-		"""[ görüldüğünde çağırılan fonksiyon
-
-		Args:
-			t_gen_func (function): generator döndüren fonksiyon
-
-		Raises:
-			Exception: Syntax Errorleri
-
-		Yields:
-			Her tipten şey döndürüyor. Ama parantez açma tarzı bir şey çıkarsa generator döndüren fonksiyon döndürüyor.
-		"""
-		# gereksiz ama koymakta fayda var
-		max_depth = self.default_max_depth if max_depth is None else max_depth
-
-		t_gen = t_gen_func()
-		key_val = ()
-		is_on_value = False
-
-		index = -1
-		for part in t_gen:
+				# yapf: disable
+				raise DBEXDecodeError("Virgül koymadan yeni eleman eklenemez", code=20)
+				# virgül koymadan yeni eleman eklenemiyor
+			
 			index += 1
-			# Eğer tokensa
-			if part in "[{(\\,:\"')}]":
-				# Hangi tür olduğuna göre fonksiyon çağır
-				if part in "[{(":
-					if len(key_val) == 0 and not is_on_value:
-						if part == "(":
-							next_closing = self.__find_next_closing(
-								t_gen, index, "()")
-							new_gen_func = lambda: (j for i, j in enumerate(
-								t_gen_func()) if index < i <= next_closing)
 
-							def tuple_gen():
-								return (i for i in self.__init_list_gen(
-									new_gen_func, tuple_mode=1))
+	def __convert_dict(self, generator_func, **kwargs):
+		gen = generator_func()
+		index = 0
+		
+		# aktif olarak döndürülecek hangi değere yazığımız, key ya da valueya yazdığımızı gösteriyor
+		# eğer keye yazmaya çalışıyorsak 0, valueya yazmaya çalışıyorsak 1
+		cursor = 0 
+		cur_value = []
+		err_closing = ")]"
+		for element in gen:
+			if element.strip() == "}":
+				if len(cur_value) == 2:
+					yield tuple(cur_value)
+				if len(cur_value) not in [0, 2]:
+    					raise DBEXDecodeError("Not Implemented", 0)
+				break
+			
+			elif element in err_closing:
+    				raise DBEXDecodeError("Not Implemented", 0)
 
-							key_val = (tuple(self.gen_normalizer(tuple_gen)), )
-							index = next_closing
-
-						else:
-							raise DBEXDecodeError(
-								"Dictionary key değerinde mutable obje türü kullanılamaz",
-								code=30)
-
-					elif len(key_val) == 1 and is_on_value:
-						# elif (ci-1) == lui: # and not len(key_val) == 2
-						if part == "[":
-							# Generator recursion
-							next_closing = self.__find_next_closing(
-								t_gen, index, "[]")
-							new_gen_func = lambda: (j for i, j in enumerate(
-								t_gen_func()) if index < i <= next_closing)
-
-							def list_gen():
-								return (i for i in self.__init_list_gen(
-									new_gen_func,
-									max_depth=max_depth,
-									gen_lvl=gen_lvl + 1))
-
-							if max_depth == "all" or gen_lvl < max_depth:
-								yield (key_val := (key_val[0], list_gen))
-							else:
-								yield (key_val :=
-									   (key_val[0],
-										self.gen_normalizer(list_gen)))
-
-							index = next_closing
-
-						elif part == "{":
-							next_closing = self.__find_next_closing(
-								t_gen, index, "{}")
-							new_gen_func = lambda: (j for i, j in enumerate(
-								t_gen_func()) if index < i <= next_closing)
-
-							def dict_gen():
-								return (i for i in self.__init_dict_gen(
-									new_gen_func,
-									max_depth=max_depth,
-									gen_lvl=gen_lvl + 1))
-
-							if max_depth == "all" or gen_lvl < max_depth:
-								yield (key_val := (key_val[0], dict_gen))
-							else:
-								yield (key_val :=
-									   (key_val[0],
-										self.gen_normalizer(dict_gen)))
-
-							index = next_closing
-
-						elif part == "(":
-							next_closing = self.__find_next_closing(
-								t_gen, index, "()")
-							new_gen_func = lambda: (j for i, j in enumerate(
-								t_gen_func()) if index < i <= next_closing)
-
-							def tuple_gen():
-								return (i for i in self.__init_list_gen(
-									new_gen_func, tuple_mode=1, max_depth=0))
-
-							yield (key_val :=
-								   (key_val[0],
-									tuple(self.gen_normalizer(tuple_gen))))
-							index = next_closing
-
-						else:
-							raise DBEXDecodeError(
-								"Bu hatayı aldığına göre library artık kullanılmıyordur",
-								code=-3)
-
-					# else:
-					#     # virgül koymadan yeni eleman eklenemiyor
-					#     raise Exception("Syntax Error (,) (Code 004)")
-
-				elif part == "}":
-					break
-
-				elif part == ",":
-					key_val = ()
-					is_on_value = False
-
-				elif part == ":":
-					if is_on_value:
-						raise DBEXDecodeError("Çok fazla iki nokta (:)",
-											  code=32)
-					is_on_value = True
-
-				elif part in ")]":
-					# Yanlış kapatma
-					raise DBEXDecodeError("Yanlış parantez kapatma ( )] )",
-										  code=33)
-
-			# Aktif parça token değilse
-			else:
-				part = self.__convert(part)
-				# Key belirleniyorsa
-				if not is_on_value:
-					key_val = (part, )
-
-				# Key girilmişse
-				elif len(key_val) == 1:
-					yield (key_val := (key_val[0], part))
-
+			elif element.strip() == ":":
+				if len(cur_value) == 1:
+					cursor = 1
 				else:
-					raise DBEXDecodeError("Çok fazla iki nokta (:)", code=34)
+					raise DBEXDecodeError("Not Implemented", 0)
 
-	def __find_next_closing(self, gen, index, type="[]"):
+			elif element.strip() == ",":
+				if len(cur_value) != 2:
+	 				raise DBEXDecodeError("Not Implemented", 0)
+				
+				yield tuple(cur_value)
+				cur_value, cursor = [], 0
+				
+			else:
+				converted_element = self.__convert(generator_func, index=index, **kwargs)
+				
+				# index atlama
+				if element in "[{(":
+					b_type=None
+					if element == "(":
+						b_type = "()"
+					elif element == "[":
+						b_type = "[]"
+					elif element == "{":
+						b_type = "{}"
+
+					index = self.__find_next_closing(gen, index=index, b_type=b_type)
+				
+				
+				# eğer key yazıyorsak ve gelen eleman dict ya da list ise hata verdir
+				if (cursor == 0 and len(cur_value) == 0) and (
+					type(converted_element) in [list, dict] or (callable(converted_element) and converted_element.__name__ in ["list_gen", "dict_gen"])):
+					raise DBEXDecodeError("Not Implemented", 0)
+				
+				cur_value.append(converted_element)
+				# if len(cur_value) == 2:
+				# 	yield tuple(cur_value)
+				
+
+			index = index + 1
+
+
+
+	def __find_next_closing(self, gen, index=0, b_type="[]"):
 		"""sonraki parantez kapatma şeyini buluyor
 
 		Args:
 			gen (generator): Valla ne yaptığını hiç hatırlamıyorum
 			index (int): kUSURA bakma
-			type (str: "()", "[]", "{}"): [description]. Defaults to "[]".
+			b_type (str: "()", "[]", "{}"): [description]. Defaults to "[]".
 			
 		Returns:
-			[type]: [description]
+			[b_type]: [description]
 		"""
 		cot = 1
-		if len(type) != 2:
+		if len(b_type) != 2:
 			raise Exception("Benim hatam...")
 
-		while cot != 0:
-			j, index = next(gen), index + 1
-			if j == type[0]:
+		for element in gen:
+			# j, index = next(gen), index + 1
+			index += 1
+			if element == b_type[0]:
 				cot += 1
-			elif j == type[1]:
+			elif element == b_type[1]:
 				cot -= 1
 
-		return index
+			if cot == 0:
+				return index
 
-	def __convert(self, part):
-		"""Verilen parçayı gerçek formuna büründürür (Bu dosyadaki tüm fonksiyonların amacı bu zaten ama)
+		raise DBEXDecodeError("parantezin kapanisi bulanamadi", 0)
 
-		Args:
-			part (str): parça
+	def load(self, path=None, sort_keys=None, encoding=None, decrypter=None, **kwargs):
+		kwargs["sort_keys"] = self.default_sort_keys if sort_keys is None else sort_keys
+		kwargs["decrypter"] = self.default_gen_decrypter if decrypter is None else decrypter
+		kwargs["encoding"] = self.default_file_encoding if encoding is None else encoding
+		kwargs["path"] = self.default_path if path is None else path
 
-		Raises:
-			Exception: Undefined variable
+		read = self.read(**kwargs)
+		return self.loads(read, **kwargs)
+		
 
-		Returns:
-			part ama gerçek formu
-		"""
-		# Şimdilik JSON uyumlu olsun hadi
-		json = True
-		part = part.strip()
-		if json:
-			if part == "null":
-				# None
-				return None
-
-			elif part in ["true", "false"]:
-				# Boolean
-				return True if part == "true" else False
-
-		if part in ["None"]:
-			# None
-			return None
-		elif part[0] in "\"'" and part[-1] in "\"'" and part[0] == part[-1]:
-			# String
-			return part[1:-1]
-		elif part.isdigit():
-			# Integer
-			return int(part)
-		elif part.replace('.', '', 1).isdigit() or part in [
-				"Infinity", "-Infinity", "NaN"
-		]:
-			# Float
-			return float(part)
-		elif part in ["True", "False"]:
-			# Boolean
-			return True if part == "True" else False
-		else:
-			raise DBEXDecodeError(
-				f"Tanımlanmamış obje ya da keyword : [{part}]", code=40)
-
-	def __load(self, generator_func, max_depth=None):
-		"""Loadların Lordu
-
-		Args:
-			generator_func (function): generator (tokenize_gen) döndüren fonksiyon
-			max_depth
-			
-		Raises:
-			Exception: Bakmaya üşendim
-
-		Returns:
-			is_generator false ise objenin kendisi
-			true ise generator döndüren fonksiyon
-		"""
-
+	def loads(self, inputObj, max_depth=None, sort_keys=None, **kwargs):
+		sort_keys = self.default_sort_keys if sort_keys is None else sort_keys
 		max_depth = self.default_max_depth if max_depth is None else max_depth
+		max_depth = 0 if sort_keys else max_depth
+		kwargs["max_depth"] = max_depth
 
-		# yapf: disable
-		generator_func2 = lambda: (j for i, j in enumerate(generator_func()) if i != 0)
-		generator = generator_func()
-		first_element = next(generator)
+		final = self.__convert(lambda: self.__tokenize_control(inputObj), **kwargs)
+		final = self.sort_keys(final) if sort_keys else final
+		
+		return final
+		
+	def loader(self, path=None, encoding=None, decrypter=None, max_depth=None, **kwargs):
+		kwargs["max_depth"] = "all" if max_depth is None else max_depth
+		kwargs["decrypter"] = self.default_gen_decrypter if decrypter is None else decrypter
+		kwargs["encoding"] = self.default_file_encoding if encoding is None else encoding
+		kwargs["path"] = self.default_path if path is None else path
 
-		# İlk eleman işlememiz gereken bir şeyse
-		# Ne olduğuna göre işleyicileri çağır
-		if first_element == "[":
-
-			def list_gen():
-				return (i for i in self.__init_list_gen(generator_func2, max_depth=max_depth))
-
-			if max_depth == "all" or max_depth > 0:
-				return list_gen
-			else:
-				return self.gen_normalizer(list_gen)
-
-		elif first_element == "{":
-
-			def dict_gen():
-				return (i for i in self.__init_dict_gen(generator_func2, max_depth=max_depth))
-
-			if max_depth == "all" or max_depth > 0:
-				return dict_gen
-			else:
-				return self.gen_normalizer(dict_gen)
-
-		elif first_element == "(":
-
-			def tuple_gen():
-				return (i for i in self.__init_list_gen(generator, tuple_mode=1, max_depth=0))
-
-			return tuple(self.gen_normalizer(tuple_gen))
-
-		else:
-			#   eğer direkt olarak sadece 1 değer
-			# okunmaya çalışılırsa token olmamalı
-			try:
-				next(generator)
-			except StopIteration:
-				return self.__convert(first_element)
-			else:
-				raise DBEXDecodeError("Verilen dosya ya da string içinde 1'den fazla obje olamaz", code=50)
-			# gen_next = "".join([i for i in generator])
-			# part = str(first_element) + "".join(gen_next)
-
-	def load(self, path=None, encoding=None, **kwargs):
-		"""json.load'un çakması
-
-		Args:
-			path (str): dosya yolu
-			encoding (str): Defaults to "utf-8".
-
-		Returns:
-			Dosyada yazılı olan obje
-		"""
-		path = self.default_path if path is None else path
-		encoding = self.default_file_encoding if encoding is None else encoding
-
-		generator_func = lambda: self.__tokenize_gen(
-		 self.read_gen(path, encoding=encoding))
-		return self.__load(generator_func, max_depth=0, **kwargs)
-
-	def loads(self, string, max_depth=None, **kwargs):
-		"""json.loads'un çakması ve generator olabiliyor
-
-		Args:
-			string (str): dönüştürülmesi istenen obje
-			is_generator (int, optional): Generator olup olmayacağı. Defaults to 0.
-
-		Returns:
-			Eğer is_generator True verilirse generator döndüren fonksiyon döndürüyor,
-			değilse direkt olarak objenin kendisini döndürüyor
-		"""
-		# max depth kontrolü __loadda yapılıyor
-		generator_func = lambda: self.__tokenize_gen(string)
-		return self.__load(generator_func,
-			   max_depth=max_depth,
-			   **kwargs)
-
-	def loader(self, path=None, encoding=None, max_depth="all", **kwargs):
-		"""json.load'un generator hali
-
-		Args:
-			path (str): okunacak dosyanın yolu
-			cls (class): Decoder classı (elleme). Defaults to Decoder from dbex.lib.decoder.
-			decrypter (function): decryption türü. Defaults to empty_decrypter from dbex.lib.encryption.
-			
-			encoding (str): Defaults to "utf-8".
-			gen_lvl (int, str): generator objesinin derinliği. Defaults to "all".
-
-		Returns:
-			(Dosyada yazanları döndüren generator) objesi döndüren bir fonksiyon
-		"""
-		max_depth = self.default_max_depth if max_depth is None else max_depth
-
-		path = self.default_path if path is None else path
-		encoding = self.default_file_encoding if encoding is None else encoding
-
-		generator_func = lambda: self.__tokenize_gen(
-		 self.read_gen(path, encoding=encoding))
-		return self.__load(generator_func,
-			   max_depth=max_depth,
-			   **kwargs)
+		read = self.read_gen(**kwargs)
+		read = self.__tokenize_control(read)
+		
+		return self.__convert(lambda: read, **kwargs)
 
 	def gen_normalizer(self, gen_func):
-		"""__load fonksiyonun generator fonksiyonunu objeye dönüştüren fonksiyon
+		"""__convert fonksiyonun generator fonksiyonunu objeye dönüştüren fonksiyon
 
 		Args:
-			gen_func (function): Generator döndüren fonksiyon alıyor (is_generator=0 __load'un çıktısı gibi)
+			gen_func (function): Generator döndüren fonksiyon alıyor (max_depth=0 __convert'ün çıktısı gibi)
 
 		Returns:
-			objenin kendisi
+			objenin gerçek formu 
 		"""
-
+		# pylint hata önlemek için
+		final = None
 		gen = gen_func()
-		if gen_func.__name__ == "dict_gen":
-			final = {}
-			for key, value in gen:
-				if callable(value):
-					final[key] = self.gen_normalizer(value)
-				else:
-					final[key] = value
-
-		elif gen_func.__name__ in ["list_gen", "tuple_gen"]:
+		if gen_func.__name__ in ["list_gen", "tuple_gen"]:
 			final = []
 			for value in gen:
 				if callable(value):
@@ -691,107 +555,63 @@ class Decoder:
 				else:
 					final.append(value)
 
-		return final
+		elif gen_func.__name__ == "dict_gen":
+			final = {}
+			for key, value in gen:
+				if callable(value):
+					final[key] = self.gen_normalizer(value)
+				else:
+					final[key] = value
 
-	def read_gen(self, path=None, encoding=None):
-		"""Dosya okuyucu (tek tek)
+		return tuple(final) if gen_func.__name__ == "tuple_gen" else final
 
-		Args:
-			path (str): okunacak dosya yolu. None verilirse defaultu alır
-			encoding (str): elleme. None verilirse defaultu alır
+	def read(self,
+	   path=None,
+	   encoding=None,
+	   decrypter=None,
+	   sort_keys=None,
+	   **kwargs):
 
-		Yields:
-			str: her bir karakter
-		"""
-		path = self.default_path if path is None else path
+		# sort keys olayına göz at
 		encoding = self.default_file_encoding if encoding is None else encoding
+		decrypter = self.default_decrypter if decrypter is None else decrypter
+		path = self.default_path if path is None else path
 
-		#   Dosyanın sonuna gelmediğimiz
-		# sürece sonraki elemanı okuyup yolla
+		with open(path) as file:
+			read = file.read()
+
+		return decrypter(read, **kwargs) if decrypter is not None else read
+
+	def read_gen(self,
+		path=None,
+		encoding=None,
+		decrypter=None,
+		max_depth=None,
+		**kwargs):
+
+		decrypter = self.default_gen_decrypter if decrypter is None else decrypter
+		encoding = self.default_file_encoding if encoding is None else encoding
+		path = self.default_path if path is None else path
+
 		char = True
-		with open(path, encoding=encoding) as f:
+		with open(path) as file:
 			while char:
-				yield (char := f.read(1))
+				yield (char := file.read(1)) if decrypter is None else decrypter((char := file.read(1)))
 
-	def read_gen_safe(self, path=None, encoding=None):
-		#       her seferinde dosyayı açıp kaptması dosya okuma ve
-		#   yazma bakımından hoş olmasına rağmen hız açısından
-		# yeteri kadar verimli olacağını düşünmüyorum
-
-		path = self.default_path if path is None else path
-		encoding = self.default_file_encoding if encoding is None else encoding
-
-		index = -1
-		char = True
-		while char:
-			with open(path, encoding=encoding) as file:
-				file.seek((index := index + 1), 0)
-				yield (char := file.read(1))
-
-	def read(self, path=None, encoding=None):
-		"""Normal direkt okuma
-
-		Args:
-			path (dosya yolu): okunacak dosya yolu 
-			encoding (str, optional): elleme. Defaults to "utf-8".
-
-		Returns:
-			okunan dosyanın içinde yazanlar
-		"""
-		path = self.default_path if path is None else path
-		encoding = self.default_file_encoding if encoding is None else encoding
-
-		# Hepsini oku yolla
-		with open(path, encoding=encoding) as f:
-			return f.read()
-
-	def __find_header_path(self, path=None):
-		# biraz sakat
-		path = self.default_path if path is None else path
-		seperator = "\\" if "\\" in path else "/"
-		spath = path.split(seperator)
-		new_path = seperator.join([i for i in spath + [f".{spath[-1]}.chex"]])
-		return new_path
-
-	def header_reader(self,
+	def read_gen_safe(self,
 		  path=None,
-		  header_tokenizer="#",
-		  header_ender="\n",
-		  safe=True):
+		  encoding=None,
+		  decrypter=None,
+		  max_depth=None,
+		  **kwargs):
 
+		decrypter = self.default_gen_decrypter if decrypter is None else decrypter
+		encoding = self.default_file_encoding if encoding is None else encoding
 		path = self.default_path if path is None else path
-		self.deafult_header_path = path = self.__find_header_path(
-		 self.default_path) if path is None else path
 
-		gen_func = self.loader(path, gen_lvl=1)
-		gen = gen_func()
-
-		for key, value in gen:
-			if key == "database_shape" and value:
-				pass
-
-			elif key == "hash":
-				pass
-
-			elif key == "version":
-				pass
-
-			elif key == "header_hash":
-				pass
-
-			else:
-				self.preform_action(path, self.header_shape)
-
-	def preform_action(self, path):
-		if self.changed_file_action == 1:
-			print(f"[WARN] The file has changed: [{path}]")
-
-		elif self.changed_file_action > 2:
-			self.reset_file(path)
-
-		elif self.changed_file_action > 3:
-			with open(path, "w+") as file:
-				file.write("")
-
-	def reset_file(self, path, shape):
-		pass
+		char = True
+		index = -1
+		while char:
+			with open(path) as file:
+				file.seek((index := index+1), 0)
+				yield (char := file.read(1)) if decrypter is None else decrypter((char := file.read(1)))
