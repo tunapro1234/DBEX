@@ -297,7 +297,7 @@ class Decoder:
 		return_func = None
 
 		if element == "[":
-			next_closing = self.__find_next_closing(gen, index=index, type="[]")
+			next_closing = self.__find_next_closing(gen, index=index, b_type="[]")
 			new_gen_func = lambda: (j for i, j in enumerate(generator_func()) if index < i <= next_closing)
 
 			def list_gen():
@@ -307,7 +307,7 @@ class Decoder:
 			return_func = list_gen
 
 		elif element == "{":
-			next_closing = self.__find_next_closing(gen, index=index, type="{}")
+			next_closing = self.__find_next_closing(gen, index=index, b_type="{}")
 			new_gen_func = lambda: (j for i, j in enumerate(generator_func())
 				  if index < i <= next_closing)
 
@@ -318,7 +318,7 @@ class Decoder:
 			return_func = dict_gen
 
 		elif element == "(":
-			next_closing = self.__find_next_closing(gen, index=index, type="()")
+			next_closing = self.__find_next_closing(gen, index=index, b_type="()")
 			new_gen_func = lambda: (j for i, j in enumerate(generator_func())
 				  if index < i <= next_closing)
 
@@ -394,8 +394,14 @@ class Decoder:
 				
 				# index arttırma
 				if element in "[{(":
-					type = "()" if tuple_mode else "[]"
-					index = self.__find_next_closing(gen, index=index, type=type)
+					b_type=None
+					if element == "(":
+						b_type = "()"
+					elif element == "[":
+						b_type = "[]"
+					elif element == "{":
+						b_type = "{}"
+					index = self.__find_next_closing(gen, index=index, b_type=b_type)
 
 				lui+=1
 
@@ -441,7 +447,19 @@ class Decoder:
 				
 			else:
 				converted_element = self.__convert(generator_func, index=index, **kwargs)
-				index = self.__find_next_closing(gen, index=index, type="{}") if element in "[{(" else index
+				
+				# index atlama
+				if element in "[{(":
+					b_type=None
+					if element == "(":
+						b_type = "()"
+					elif element == "[":
+						b_type = "[]"
+					elif element == "{":
+						b_type = "{}"
+
+					index = self.__find_next_closing(gen, index=index, b_type=b_type)
+				
 				
 				# eğer key yazıyorsak ve gelen eleman dict ya da list ise hata verdir
 				if (cursor == 0 and len(cur_value) == 0) and (
@@ -457,27 +475,27 @@ class Decoder:
 
 
 
-	def __find_next_closing(self, gen, index=0, type="[]"):
+	def __find_next_closing(self, gen, index=0, b_type="[]"):
 		"""sonraki parantez kapatma şeyini buluyor
 
 		Args:
 			gen (generator): Valla ne yaptığını hiç hatırlamıyorum
 			index (int): kUSURA bakma
-			type (str: "()", "[]", "{}"): [description]. Defaults to "[]".
+			b_type (str: "()", "[]", "{}"): [description]. Defaults to "[]".
 			
 		Returns:
-			[type]: [description]
+			[b_type]: [description]
 		"""
 		cot = 1
-		if len(type) != 2:
+		if len(b_type) != 2:
 			raise Exception("Benim hatam...")
 
 		for element in gen:
 			# j, index = next(gen), index + 1
 			index += 1
-			if element == type[0]:
+			if element == b_type[0]:
 				cot += 1
-			elif element == type[1]:
+			elif element == b_type[1]:
 				cot -= 1
 
 			if cot == 0:
@@ -486,18 +504,14 @@ class Decoder:
 		raise DBEXDecodeError("parantezin kapanisi bulanamadi", 0)
 
 	def load(self, path=None, sort_keys=None, encoding=None, decrypter=None, **kwargs):
+		kwargs["sort_keys"] = self.default_sort_keys if sort_keys is None else sort_keys
 		kwargs["decrypter"] = self.default_gen_decrypter if decrypter is None else decrypter
 		kwargs["encoding"] = self.default_file_encoding if encoding is None else encoding
 		kwargs["path"] = self.default_path if path is None else path
-		sort_keys = self.default_sort_keys if sort_keys is None else sort_keys
 
 		read = self.read(**kwargs)
-		read = self.__tokenize_control(read)
+		return self.loads(read, **kwargs)
 		
-		outputObj = self.__convert(lambda: read, max_depth=0, **kwargs)
-		outputObj = self.sort_keys(outputObj) if sort_keys else outputObj
-		
-		return outputObj
 
 	def loads(self, inputObj, max_depth=None, sort_keys=None, **kwargs):
 		sort_keys = self.default_sort_keys if sort_keys is None else sort_keys

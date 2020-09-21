@@ -142,18 +142,16 @@ class TestNewDecoder(unittest.TestCase):
 ##### TEST LOAD...
 
 	def test_load(self):
-		tester = "['tunapro', (()), [[]], [[0, '[\\]']], None]"
 		correct_result = ["tunapro", ((), ), [[]], [[0, "[\\]"]], None]
-
-		path = "dbex/test/test.dbex"
-		with open(path, "w+") as file:
+		tester = str(correct_result)
+		
+		with open(self.test_file, "w+") as file:
 			file.write(tester)
 
-		result = dec.load(path)
+		result = dec.load(path=self.test_file)
 		self.assertEqual(result, correct_result)
 
 	def test_loads(self):
-		# correct_result = ["tunapro", ((), )]
 		correct_result = ["tunapro", ((), ), [[]], [[0, "[\\]"]]]
 		# correct_result = ['"tunapro"', [[]], [[]], [[0, '"[\\]"']]]
 		tester = str(correct_result)
@@ -246,9 +244,14 @@ class TestNewDecoder(unittest.TestCase):
 		self.assertEqual(result, correct_result)
 	
 	def test_convert_tuple(self):
-		tester = '("false", True, (1, 2, 3, ()))'
 		correct_result = ("false", True, (1, 2, 3, ()))
+		tester = str(correct_result)
+		result = dec._Decoder__convert(lambda: dec._Decoder__tokenize_control(tester))
 
+		self.assertEqual(result, correct_result)
+		
+		correct_result = [(), True]
+		tester = str(correct_result)
 		result = dec._Decoder__convert(lambda: dec._Decoder__tokenize_control(tester))
 
 		self.assertEqual(result, correct_result)
