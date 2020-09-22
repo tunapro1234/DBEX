@@ -1,5 +1,5 @@
-from dbex.lib.decoder import Decoder
 from dbex.lib.decoder import DBEXDecodeError
+from dbex.lib.decoder import Decoder
 import unittest
 # import time
 import types

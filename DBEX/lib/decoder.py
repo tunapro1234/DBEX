@@ -37,7 +37,7 @@ __convert_obj yaptım
 hadi başlayalım
 """
 
-# from dbex.lib.encryption import decrypter
+# from dbex.lib.encryption import DBEXDefaultEncrypter as DefaultEncryptionClass
 import dbex.res.globalv as gvars
 # import types
 # import time
@@ -67,33 +67,38 @@ class Decoder:
 	header_shape = gvars.header_shape
 
 	def __init__(self,
-				 header=True,
-				 default_path=None,
+				 path=None,
+				 sort_keys=0,
+				 header=False,
+				 max_depth="all",
+				 header_path=None,
 				 json_compability=1,
 				 database_shape=None,
-				 default_sort_keys=0,
-				 encryption_pass=None,
+				 decrypter_args=None,
+				 decrypter_kwargs=None,
+				 file_encoding="utf-8",
 				 changed_file_action=0,
-				 default_decrypter=None,
-				 default_max_depth="all",
-				 default_header_path=None,
-				 default_file_encoding="utf-8"):
+				 encryption_class=None):
 
-		self.default_file_encoding = default_file_encoding
 		self.changed_file_action = changed_file_action
-		self.default_header_path = default_header_path
-		self.default_decrypter = default_decrypter
-		self.default_sort_keys = default_sort_keys
-		self.default_max_depth = default_max_depth
 		self.json_compability = json_compability
-		self.encryption_pass = encryption_pass
+		self.encryption_class = encryption_class
+		self.decrypter_kwargs = decrypter_kwargs
+		self.decrypter_args = decrypter_args
 		self.database_shape = database_shape
-		self.default_path = default_path
+		self.file_encoding = file_encoding
+		self.header_path = header_path
+		self.sort_keys_ = sort_keys
+		self.max_depth = max_depth
 		self.header = header
+		self.path = path
 
-		self.default_gen_decrypter = None
-		if self.default_decrypter is not None and self.default_decrypter.gen_support:
-			self.default_gen_decrypter = self.default_decrypter
+		self.decrypter = None
+		self.decrypter_gen = None
+		if encryption_class is not None:
+			if hasattr(encryption_class, "gen_encryption"):
+				self.decrypter_gen = lambda: encryption_class.gen_decrypter
+			self.decrypter = lambda: encryption_class.decrypter
 
 	def __tokenize(self, string, tokenizers=None):
 		"""Verilen tokenizerları verilen string (ya da generator) 
@@ -254,7 +259,7 @@ class Decoder:
 		"""
 
 		# yapf: disable
-		kwargs["max_depth"] = max_depth = self.default_max_depth if max_depth is None else max_depth
+		kwargs["max_depth"] = max_depth = self.max_depth if max_depth is None else max_depth
 		# max_depth default ayarlaması
 		kwargs["gen_lvl"] = gen_lvl + 1
 		# gen_lvl sadece burada arttırılıyor
@@ -310,7 +315,7 @@ class Decoder:
 		"""
 
 		# yapf: disable
-		kwargs["max_depth"] = max_depth = self.default_max_depth if max_depth is None else max_depth
+		kwargs["max_depth"] = max_depth = self.max_depth if max_depth is None else max_depth
 		# default ayarlama şeyleri
 		kwargs["gen_lvl"] = gen_lvl
 		return_func = None
@@ -559,30 +564,54 @@ class Decoder:
 
 		raise DBEXDecodeError("parantezin kapanisi bulanamadi", 0)
 
-	def load(self, path=None, sort_keys=None, encoding=None, decrypter=None, **kwargs):
-		kwargs["decrypter"] = self.default_gen_decrypter if decrypter is None else decrypter
-		kwargs["encoding"] = self.default_file_encoding if encoding is None else encoding
-		kwargs["path"] = self.default_path if path is None else path
-		
-		generator_func = lambda: self.__tokenize_control(self.read(**kwargs))
-		final = self.__convert(generator_func, **kwargs)
-		return self.sort_keys(final) if sort_keys else final
-
 	def loads(self, inputObj, max_depth=None, sort_keys=None, **kwargs):
-		sort_keys = self.default_sort_keys if sort_keys is None else sort_keys
-		max_depth = self.default_max_depth if max_depth is None else max_depth
+		sort_keys = self.sort_keys_ if sort_keys is None else sort_keys
+		max_depth = self.max_depth if max_depth is None else max_depth
 		kwargs["max_depth"] = "all" if sort_keys else max_depth
 		
 		final = self.__convert(lambda: self.__tokenize_control(inputObj), **kwargs)
-		return self.sort_keys(final) if sort_keys else final
+		return self.sort_keys_(final) if sort_keys else final
 
-	def loader(self, path=None, max_depth=None, encoding=None, decrypter=None, **kwargs):
-		kwargs["decrypter"] = self.default_gen_decrypter if decrypter is None else decrypter
-		kwargs["encoding"] = self.default_file_encoding if encoding is None else encoding
-		kwargs["max_depth"] = 0 if max_depth is None else max_depth
-		kwargs["path"] = self.default_path if path is None else path
+	def load(self, path=None, max_depth=None, sort_keys=None, encoding=None, decrypter=None, decrypter_args=None, decrypter_kwargs=None, **kwargs):
+		# max_depth = None # vazgeçtim 
+		decrypter_kwargs = self.decrypter_kwargs if decrypter_kwargs is None else decrypter_kwargs
+		decrypter_args = self.decrypter_args if decrypter_args is None else decrypter_args
+		decrypter = self.decrypter if decrypter is None else decrypter
 		
-		generator_func = lambda: self.__tokenize_control(self.read_gen(**kwargs))
+		sort_keys = self.sort_keys_ if sort_keys is None else sort_keys
+		kwargs["max_depth"] = "all" if max_depth is None or sort_keys else max_depth # load ve dumpta max_depth iptal -yoo (gelecekteki tuna)
+		
+		encoding = self.file_encoding if encoding is None else encoding
+		path = self.path if path is None else path
+		
+		if decrypter:
+			decrypter_args = [] if decrypter_args is None else decrypter_args
+			decrypter_kwargs = {} if decrypter_kwargs is None else decrypter_kwargs
+			generator_func = lambda: self.__tokenize_control(decrypter(self.read(path=path, encoding=encoding), *decrypter_args, **decrypter_kwargs))
+		else:
+			generator_func = lambda: self.__tokenize_control(self.read(path=path, encoding=encoding))
+		
+		
+		final = self.__convert(generator_func, **kwargs)
+		return self.sort_keys_(final) if sort_keys else final
+		# return self.__convert(generator_func, **kwargs)
+
+	def loader(self, path=None, max_depth=None, encoding=None, decrypter=None, decrypter_args=None, decrypter_kwargs=None, **kwargs):
+		decrypter_kwargs = self.decrypter_kwargs if decrypter_kwargs is None else decrypter_kwargs
+		decrypter_args = self.decrypter_args if decrypter_args is None else decrypter_args
+		decrypter = self.decrypter_gen if decrypter is None else decrypter
+		
+		encoding = self.file_encoding if encoding is None else encoding
+		kwargs["max_depth"] = 0 if max_depth is None else max_depth
+		path = self.path if path is None else path
+		
+		if decrypter:
+			decrypter_args = [] if decrypter_args is None else decrypter_args
+			decrypter_kwargs = {} if decrypter_kwargs is None else decrypter_kwargs
+			generator_func = lambda: self.__tokenize_control(decrypter(self.read_gen_safe(path=path, encoding=encoding), *decrypter_args, **decrypter_kwargs))
+		else:
+			generator_func = lambda: self.__tokenize_control(self.read_gen_safe(path=path, encoding=encoding))
+		
 		return self.__convert(generator_func, **kwargs)
 	
 	def gen_normalizer(self, gen_func, recursion=True):
@@ -615,53 +644,34 @@ class Decoder:
 
 		return tuple(final) if gen_func.__name__ == "tuple_gen" else final
 
-	def read(self,
-	   path=None,
-	   encoding=None,
-	   decrypter=None,
-	   sort_keys=None,
-	   **kwargs):
-
+	def read(self, path=None, encoding=None):
 		# sort keys olayına göz at
-		encoding = self.default_file_encoding if encoding is None else encoding
-		decrypter = self.default_decrypter if decrypter is None else decrypter
-		path = self.default_path if path is None else path
+		# decrypter = self.default_decrypter if decrypter is None else decrypter
+		encoding = self.file_encoding if encoding is None else encoding
+		path = self.path if path is None else path
 
 		with open(path) as file:
-			read = file.read()
+			return file.read()
 
-		return decrypter(read, **kwargs) if decrypter is not None else read
-
-	def read_gen(self,
-		path=None,
-		encoding=None,
-		decrypter=None,
-		max_depth=None,
-		**kwargs):
-
-		decrypter = self.default_gen_decrypter if decrypter is None else decrypter
-		encoding = self.default_file_encoding if encoding is None else encoding
-		path = self.default_path if path is None else path
+	def read_gen(self, path=None, encoding=None):
+		encoding = self.file_encoding if encoding is None else encoding
+		path = self.path if path is None else path
 
 		char = True
 		with open(path) as file:
 			while char:
-				yield (char := file.read(1)) if decrypter is None else decrypter((char := file.read(1)))
+				yield (char := file.read(1))
 
-	def read_gen_safe(self,
-		  path=None,
-		  encoding=None,
-		  decrypter=None,
-		  max_depth=None,
-		  **kwargs):
-
-		decrypter = self.default_gen_decrypter if decrypter is None else decrypter
-		encoding = self.default_file_encoding if encoding is None else encoding
-		path = self.default_path if path is None else path
+	def read_gen_safe(self, path=None, encoding=None):
+		encoding = self.file_encoding if encoding is None else encoding
+		path = self.path if path is None else path
 
 		char = True
 		index = -1
 		while char:
 			with open(path) as file:
 				file.seek((index := index+1), 0)
-				yield (char := file.read(1)) if decrypter is None else decrypter((char := file.read(1)))
+				yield (char := file.read(1))
+
+	def sort_keys(self, rv, *args, **kwargs):
+		return rv

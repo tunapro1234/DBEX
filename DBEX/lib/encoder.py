@@ -1,6 +1,8 @@
-from dbex.lib.encryption import encrypter as defaultEncrypter_func
+# from dbex.lib.encryption import DBEXDefaultEncrypter as DefaultEncryptionClass
 import dbex.res.globalv as gvars
-import types
+# import types
+# import time
+
 
 __version__ = gvars.version()
 
@@ -51,39 +53,46 @@ kesin bir bokluk çıkacak
 
 class Encoder:
 	def __init__(self,
+				 indent=0,
+				 path=None,
+				 sort_keys=0,
+				 max_depth=0,
 				 header=False,
-				 default_indent=0,
-				 default_path=None,
+				 allow_nan=True,
+				 header_path=None,
 				 json_compability=1,
-				 default_max_depth=0,
 				 database_shape=None,
-				 default_sort_keys=0,
+				 encrypter_args=None,
 				 encryption_pass=None,
 				 changed_file_action=0,
-				 default_encrypter=None,
-				 default_header_path=None,
-				 default_seperators=(", ", ": "),
-				 default_file_encoding="utf-8",
-				 allow_nan=(True if True else True)):
+				 encryption_class=None,
+				 file_encoding="utf-8",
+				 seperators=(", ", ": "),
+				 encrypter_kwargs=None):
 
-		self.default_file_encoding = default_file_encoding
-		self.default_header_path = default_header_path
 		self.changed_file_action = changed_file_action
-		self.default_seperators = default_seperators
-		self.default_sort_keys = default_sort_keys
-		self.default_max_depth = default_max_depth
-		self.default_encrypter = default_encrypter
+		self.encryption_class = encryption_class
 		self.json_compability = json_compability
+		self.encrypter_kwargs = encrypter_kwargs
 		self.encryption_pass = encryption_pass
-		self.default_indent = default_indent
+		self.encrypter_args = encrypter_args
 		self.database_shape = database_shape
-		self.default_path = default_path
+		self.file_encoding = file_encoding
+		self.header_path = header_path
+		self.seperators = seperators
+		self.sort_keys_ = sort_keys
+		self.max_depth = max_depth
 		self.allow_nan = allow_nan
+		self.indent = indent
 		self.header = header
+		self.path = path
 
-		self.default_gen_encrypter = None
-		if self.default_encrypter is not None and self.default_encrypter.gen_support:
-			self.default_gen_encrypter = self.default_encrypter
+		self.encrypter = None
+		self.encrypter_gen = None
+		if encryption_class is not None:
+			if hasattr(encryption_class, "gen_encryption"):
+				self.encrypter_gen = encryption_class.gen_encrypter
+			self.encrypter = encryption_class.encrypter
 
 	def __convert(self,
 				  inputObj,
@@ -98,7 +107,7 @@ class Encoder:
 		# JSON COMPABILITY OLAYINA BAK
 
 		json_compability = self.json_compability if json_compability is None else json_compability
-		max_depth = self.default_max_depth if max_depth is None else max_depth
+		max_depth = self.max_depth if max_depth is None else max_depth
 		allow_nan = self.allow_nan if allow_nan is None else allow_nan
 
 		kwargs["json_compability"] = json_compability
@@ -158,7 +167,7 @@ class Encoder:
 
 	def __router(self, inputObj, max_depth=None, gen_lvl=None, **kwargs):
 		# gen level bu fonksiyonu çağıran __convert fonksiyonunda arttırılıyor
-		max_depth = self.default_max_depth if max_depth is None else max_depth
+		max_depth = self.max_depth if max_depth is None else max_depth
 		kwargs["max_depth"] = max_depth
 		kwargs["gen_lvl"] = gen_lvl
 
@@ -199,9 +208,9 @@ class Encoder:
 	  gen_lvl=1,
 	  **kwargs):
 
-		seperators = self.default_seperators if type(seperators) != tuple else seperators
-		max_depth = self.default_max_depth if max_depth is None else max_depth
-		indent = self.default_indent if type(indent) != int else indent
+		seperators = self.seperators if type(seperators) != tuple else seperators
+		max_depth = self.max_depth if max_depth is None else max_depth
+		indent = self.indent if type(indent) != int else indent
 
 		str_indent = " " * indent
 
@@ -257,9 +266,9 @@ class Encoder:
 	  gen_lvl=1,
 	  **kwargs):
 
-		seperators = self.default_seperators if type(seperators) != tuple else seperators
-		max_depth = self.default_max_depth if max_depth is None else max_depth
-		indent = self.default_indent if type(indent) != int else indent
+		seperators = self.seperators if type(seperators) != tuple else seperators
+		max_depth = self.max_depth if max_depth is None else max_depth
+		indent = self.indent if type(indent) != int else indent
 
 		str_indent = " " * indent
 
@@ -302,33 +311,6 @@ class Encoder:
 		# parantez kapatma
 		yield "}"
 
-	def dump(self, inputObj, path=None, sort_keys=None, encoding=None, encrypter=None, **kwargs):
-		"""[summary]
-
-		Args:
-			inputObj (any): [description]
-			path (str): [description]. Defaults to None.
-			indent (int):
-			sort_keys (bool):
-			allow_nan (bool, optional):
-			seperators ((str [virgül], str[iki nokta])):
-		
-		Returns:
-			[type]: [description]
-		"""
-
-		encrypter = self.default_gen_encrypter if encrypter is None else encrypter
-		encoding = self.default_file_encoding if encoding is None else encoding
-		sort_keys = self.default_sort_keys if sort_keys is None else sort_keys
-		path = self.default_path if path is None else path
-
-		if sort_keys:
-			inputObj = self.sort_keys(inputObj)
-
-		# yapf: disable
-		rv = "".join([i for i in self.__convert(inputObj, **kwargs)])
-		return self.write(rv, path=path, encoding=encoding, encrypter=encrypter)
-
 	def dumps(self, inputObj, max_depth=None, sort_keys=None, **kwargs):
 		"""[summary]
 
@@ -343,8 +325,8 @@ class Encoder:
 		Returns:
 			[type]: [description]
 		"""
-		sort_keys = self.default_sort_keys if sort_keys is None else sort_keys
-		max_depth = self.default_max_depth if max_depth is None else max_depth
+		sort_keys = self.sort_keys_ if sort_keys is None else sort_keys
+		max_depth = self.max_depth if max_depth is None else max_depth
 		kwargs["max_depth"] = max_depth
 
 		if sort_keys:
@@ -359,7 +341,50 @@ class Encoder:
 			# return lambda: self.__convert(inputObj, **kwargs)
 			return self.__convert(inputObj, **kwargs)
 
-	def dumper(self, inputObj, path=None, encoding=None, encrypter=None, **kwargs):
+	def dump(self, inputObj, path=None, max_depth=None, sort_keys=None, encoding=None, encrypter=None, encrypter_args=None, encrypter_kwargs=None, **kwargs):
+		"""[summary]
+
+		Args:
+			inputObj (any): [description]
+			path (str): [description]. Defaults to None.
+			indent (int):
+			sort_keys (bool):
+			allow_nan (bool, optional):
+			seperators ((str [virgül], str[iki nokta])):
+		
+		Returns:
+			[type]: [description]
+		
+		"""
+
+		encrypter_kwargs = self.encrypter_kwargs if encrypter_kwargs is None else encrypter_kwargs
+		encrypter_args = self.encrypter_args if encrypter_args is None else encrypter_args
+		# encrypter = self.encrypter_gen if encrypter is None else encrypter
+		
+		encoding = self.file_encoding if encoding is None else encoding
+		sort_keys = self.sort_keys_ if sort_keys is None else sort_keys
+		max_depth = self.max_depth if max_depth is None else max_depth
+		path = self.path if path is None else path
+
+		if sort_keys:
+			inputObj = self.sort_keys(inputObj)
+
+		rv = "".join([i for i in self.__convert(inputObj, **kwargs)])
+		if max_depth == "all" or max_depth <= 0:
+			rv = "".join([i for i in self.__convert(inputObj, **kwargs)])
+			encrypter = self.encrypter if encrypter is None else encrypter
+		else:
+			rv = self.__convert(inputObj, **kwargs)
+			encrypter = self.encrypter_gen if encrypter is None else encrypter
+		
+		if encrypter:
+			encrypter_args = [] if encrypter_args is None else encrypter_args
+			encrypter_kwargs = {} if encrypter_kwargs is None else encrypter_kwargs
+			return self.write_gen(encrypter(rv, *encrypter_args, **encrypter_kwargs), path=path, encoding=encoding)
+		else:
+			return self.write_gen(rv, path=path, encoding=encoding)
+    			
+	def dumper(self, inputObj, path=None, encoding=None, encrypter=None, encrypter_args=None, encrypter_kwargs=None, **kwargs):
 		"""[summary]
 
 		Args:
@@ -373,22 +398,23 @@ class Encoder:
 		Returns:
 			[type]: [description]
 		"""
-		encrypter = self.default_gen_encrypter if encrypter is None else encrypter
-		encoding = self.default_file_encoding if encoding is None else encoding
-		path = self.default_path if path is None else path
+		encrypter_kwargs = self.encrypter_kwargs if encrypter_kwargs is None else encrypter_kwargs
+		encrypter_args = self.encrypter_args if encrypter_args is None else encrypter_args
+		encrypter = self.encrypter_gen if encrypter is None else encrypter
+		
+		encoding = self.file_encoding if encoding is None else encoding
+		path = self.path if path is None else path
 
 		# yapf: disable
 		generator = self.__convert(inputObj, **kwargs)
-		return self.write_gen(generator, path=path, encoding=encoding, encrypter=encrypter)
+		if encrypter:
+			encrypter_args = [] if encrypter_args is None else encrypter_args
+			encrypter_kwargs = {} if encrypter_kwargs is None else encrypter_kwargs
+			return self.write_gen_safe(encrypter(generator, *encrypter_args, **encrypter_kwargs), path=path, encoding=encoding)
+		else:
+			return self.write_gen_safe(generator, path=path, encoding=encoding)
 
-	def write(self,
-	 string,
-	 path=None,
-	 encoding=None,
-	 mode=None,
-	 encrypter=None,
-	 *encrypter_args,
-	 **encrypter_kwargs):
+	def write(self, string, path=None, encoding=None):
 		"""Verilen stringi verilen pathe yazdırır.
 
 		Args:
@@ -401,30 +427,18 @@ class Encoder:
 		Returns:
 			bool: İşlem başarılıysa True değilse False
 		"""
-
-		
-		mode = "w+" if mode not in ["w+", "w"] else mode
-		path = self.default_path if path is None else path
-		encoding = self.default_file_encoding if encoding is None else encoding
-		encrypter = self.default_encrypter if encrypter is None else encrypter
-
-		string = encrypter(string, *encrypter_args, **encrypter_kwargs) if encrypter else string
+		path = self.path if path is None else path
+		encoding = self.file_encoding if encoding is None else encoding
 
 		try:
-			with open(path, mode, encoding=encoding) as file:
+			with open(path, "w+", encoding=encoding) as file:
 				file.write(string)
 		except:
 			return False
 		else:
 			return True
 
-	def write_gen(self,
-		generator,
-		path=None,
-		encoding=None,
-		encrypter=None,
-		*encrypter_args,
-		**encrypter_kwargs):
+	def write_gen(self, generator, path=None, encoding=None):
 		"""Generator objesinin döndürüğü stringleri verilen pathe yazdırır.
 
 		Args:
@@ -435,11 +449,8 @@ class Encoder:
 		Returns:
 			bool: İşlem başarılıysa True değilse False
 		"""
-		path = self.default_path if path is None else path
-		encoding = self.default_file_encoding if encoding is None else encoding
-		encrypter = self.default_gen_encrypter if encrypter is None else encrypter
-
-		generator = encrypter(generator, *encrypter_args, **encrypter_kwargs) if encrypter else generator
+		path = self.path if path is None else path
+		encoding = self.file_encoding if encoding is None else encoding
 
 		try:
 			with open(path, "w+", encoding=encoding) as file:
@@ -453,13 +464,7 @@ class Encoder:
 		else:
 			return True
 
-	def write_gen_safe(self,
-		generator,
-		path=None,
-		encoding=None,
-		encrypter=None,
-		*encrypter_args,
-		**encrypter_kwargs):
+	def write_gen_safe(self, generator, path=None, encoding=None):
 		"""Generator objesinin döndürüğü stringleri verilen pathe yazdırır (her seferinde açıp kapatarak).
 
 		Args:
@@ -470,11 +475,8 @@ class Encoder:
 		Returns:
 			bool: İşlem başarılıysa True değilse False
 		"""
-		path = 	self.default_path if path is None else path
-		encoding = self.default_file_encoding if encoding is None else encoding
-		encrypter =	self.default_gen_encrypter if encrypter is None else encrypter
-
-		generator = encrypter(generator, *encrypter_args, **encrypter_kwargs) if encrypter else generator
+		encoding = self.file_encoding if encoding is None else encoding
+		path = 	self.path if path is None else path
 
 		try:
 			with open(path, "w+", encoding=encoding) as file:
@@ -488,5 +490,5 @@ class Encoder:
 		else:
 			return True
 
-	def sort_keys(self, rv, *args, **kwargs):
-		return rv
+	def sort_keys(self, *args, **kwargs):
+		return args

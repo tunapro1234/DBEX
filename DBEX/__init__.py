@@ -1,3 +1,4 @@
+from dbex.lib.encryption import DBEXDefaultEncrypter as DefaultEncryptionClass
 from dbex.lib.encoder import Encoder
 from dbex.lib.decoder import Decoder
 
@@ -23,9 +24,6 @@ def dump(*args, **kwargs):
 def dumps(*args, **kwargs):
 	Decoder().dumps(*args, **kwargs)
 
-def dumper(*args, **kwargs):
-	Decoder().dumper(*args, **kwargs)
-
 
 def load(*args, **kwargs):
 	Encoder().load(*args, **kwargs)
@@ -33,5 +31,3 @@ def load(*args, **kwargs):
 def loads(*args, **kwargs):
 	Encoder().loads(*args, **kwargs)
 
-def loader(*args, **kwargs):
-	Encoder().loader(*args, **kwargs)
