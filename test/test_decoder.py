@@ -61,6 +61,17 @@ class TestDecoder(unittest.TestCase):
 		import os
 		os.remove(self.test_file)
 
+	def test_max_depth(self):
+		correct_result = ["tunapro", 12.34, [False]]
+		tester = str(correct_result)
+		
+		result = dec.loads(tester, max_depth=1)
+		print(f"{result}")
+		
+		self.assertEqual(result[:-1], correct_result[:-1])
+		self.assertEqual(result[-1].__name__, "list_gen")
+		self.assertEqual(dec.gen_normalizer(result[-1]), correct_result[-1])
+
 ##### COMPABILITY
 
 	def test_json_comp(self):

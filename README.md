@@ -1,10 +1,10 @@
-### JSON ama generator
+# JSON ama generator
 Python için olan json kütüphanesinin generator hali.
 
 ## Geliştirme aşamasında
 Json kütüphanesine yetişebikmem için eklemem gerekn çok fazla özellik var ama maalesef ben 11. sınıfım
 
-# Kullanım
+### Kullanım
 ```python
 import dbex
 
@@ -27,3 +27,6 @@ print("ok" if tester == result else "olamaz")
 # çalışır herhalde
 # umarım
 ```
+#### max_depth Parametresi
+`max_depth` parametresi encoder için hangi seviyeye kadar generator olarak devam edeceğini belirliyor, "all" tamamen generator, 0 direkt döndürme.
+Decoder için ise hangi seviyeye kadar normal gideceğini söylüyor, belirtilen seviyeden sonrası generator object olarak döndürülüyor. objenin ne olduğuna döndürülen fonksiyon isminden bakılabilir. `tuple_gen`, `list_gen` veya `dict_gen` olabiliyor. bunları işleyen default fonksiyon dec.gen_normalizer, fakat bunları farklı bir şekilde anlamlandırmak isterseniz (tupleları yok etmek gibi) bunu yapabilirsiniz.

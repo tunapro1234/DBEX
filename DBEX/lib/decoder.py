@@ -70,12 +70,12 @@ class Decoder:
 				 header=True,
 				 default_path=None,
 				 json_compability=1,
-				 default_max_depth=0,
 				 database_shape=None,
 				 default_sort_keys=0,
 				 encryption_pass=None,
 				 changed_file_action=0,
 				 default_decrypter=None,
+				 default_max_depth="all",
 				 default_header_path=None,
 				 default_file_encoding="utf-8"):
 
@@ -360,11 +360,14 @@ class Decoder:
 			# return_func = tuple_gen
 
 
-		if (max_depth == "all" or gen_lvl < max_depth):
-			return return_func
+		if type(max_depth) == int and gen_lvl <= max_depth:
+			return self.gen_normalizer(return_func, recursion=False)
+
+		elif type(max_depth) == str and max_depth == "all":
+			return self.gen_normalizer(return_func)
 
 		else:
-			return self.gen_normalizer(return_func)
+			return return_func
 
 	def __convert_obj(self, element, json_compability=True):
 		"""Verilen str objeyi anlamlandırıyor
@@ -568,7 +571,7 @@ class Decoder:
 	def loads(self, inputObj, max_depth=None, sort_keys=None, **kwargs):
 		sort_keys = self.default_sort_keys if sort_keys is None else sort_keys
 		max_depth = self.default_max_depth if max_depth is None else max_depth
-		kwargs["max_depth"] = 0 if sort_keys else max_depth
+		kwargs["max_depth"] = "all" if sort_keys else max_depth
 		
 		final = self.__convert(lambda: self.__tokenize_control(inputObj), **kwargs)
 		return self.sort_keys(final) if sort_keys else final
@@ -576,13 +579,13 @@ class Decoder:
 	def loader(self, path=None, max_depth=None, encoding=None, decrypter=None, **kwargs):
 		kwargs["decrypter"] = self.default_gen_decrypter if decrypter is None else decrypter
 		kwargs["encoding"] = self.default_file_encoding if encoding is None else encoding
-		kwargs["max_depth"] = "all" if max_depth is None else max_depth
+		kwargs["max_depth"] = 0 if max_depth is None else max_depth
 		kwargs["path"] = self.default_path if path is None else path
 		
 		generator_func = lambda: self.__tokenize_control(self.read_gen(**kwargs))
 		return self.__convert(generator_func, **kwargs)
-
-	def gen_normalizer(self, gen_func):
+	
+	def gen_normalizer(self, gen_func, recursion=True):
 		"""__convert fonksiyonun generator fonksiyonunu objeye dönüştüren fonksiyon
 
 		Args:
@@ -597,7 +600,7 @@ class Decoder:
 		if gen_func.__name__ in ["list_gen", "tuple_gen"]:
 			final = []
 			for value in gen:
-				if callable(value):
+				if callable(value) and recursion:
 					final.append(self.gen_normalizer(value))
 				else:
 					final.append(value)
@@ -605,7 +608,7 @@ class Decoder:
 		elif gen_func.__name__ == "dict_gen":
 			final = {}
 			for key, value in gen:
-				if callable(value):
+				if callable(value) and recursion:
 					final[key] = self.gen_normalizer(value)
 				else:
 					final[key] = value
