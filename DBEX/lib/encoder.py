@@ -63,18 +63,18 @@ class Encoder:
 				 json_compability=1,
 				 database_shape=None,
 				 encrypter_args=None,
+				 encryption_obj=None,
 				 encryption_pass=None,
 				 changed_file_action=0,
-				 encryption_class=None,
 				 file_encoding="utf-8",
 				 seperators=(", ", ": "),
 				 encrypter_kwargs=None):
 
 		self.changed_file_action = changed_file_action
-		self.encryption_class = encryption_class
 		self.json_compability = json_compability
 		self.encrypter_kwargs = encrypter_kwargs
 		self.encryption_pass = encryption_pass
+		self.encryption_obj = encryption_obj
 		self.encrypter_args = encrypter_args
 		self.database_shape = database_shape
 		self.file_encoding = file_encoding
@@ -89,10 +89,10 @@ class Encoder:
 
 		self.encrypter = None
 		self.encrypter_gen = None
-		if encryption_class is not None:
-			if hasattr(encryption_class, "gen_encryption"):
-				self.encrypter_gen = encryption_class.gen_encrypter
-			self.encrypter = encryption_class.encrypter
+		if encryption_obj is not None:
+			if hasattr(encryption_obj, "gen_encryption"):
+				self.encrypter_gen = encryption_obj.gen_encrypter
+			self.encrypter = encryption_obj.encrypter
 
 	def __convert(self,
 				  inputObj,
@@ -334,11 +334,9 @@ class Encoder:
 			inputObj = self.sort_keys(inputObj)
 
 		# yapf: disable
-		if max_depth == "all" or max_depth <= 0:
+		if type(max_depth) is int and max_depth <= 0:
 			return "".join([i for i in self.__convert(inputObj, **kwargs)])
 		else:
-			# lambda koymamın nedenini bilmiyorum
-			# return lambda: self.__convert(inputObj, **kwargs)
 			return self.__convert(inputObj, **kwargs)
 
 	def dump(self, inputObj, path=None, max_depth=None, sort_keys=None, encoding=None, encrypter=None, encrypter_args=None, encrypter_kwargs=None, **kwargs):
@@ -369,8 +367,8 @@ class Encoder:
 		if sort_keys:
 			inputObj = self.sort_keys(inputObj)
 
-		rv = "".join([i for i in self.__convert(inputObj, **kwargs)])
-		if max_depth == "all" or max_depth <= 0:
+		# rv = "".join([i for i in self.__convert(inputObj, **kwargs)])
+		if type(max_depth) is int and max_depth <= 0:
 			rv = "".join([i for i in self.__convert(inputObj, **kwargs)])
 			encrypter = self.encrypter if encrypter is None else encrypter
 		else:

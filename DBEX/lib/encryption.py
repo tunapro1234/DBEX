@@ -4,22 +4,34 @@ __version__ = gvars.version()
 
 class DBEXDefaultEncrypter:
 	def __init__(self):
-		gen_encryption = True
-		gen_encrypter = self.encrypter
-		gen_decrypter = self.decrypter
+		self.gen_encryption = True
+		self.gen_encrypter = self.encrypter
+		self.gen_decrypter = self.decrypter
 
-	def encrypter(generator_func, *args, **kwargs):
-		gen = generator_func()
-		for i in gen:
+	def encrypter(self, generator, *args, **kwargs):
+		for i in generator:
 			yield i
 
-	def decrypter(generator_func, *args, **kwargs):
-		gen = generator_func()
-		for i in gen:
+	def decrypter(self, generator, *args, **kwargs):
+		for i in generator:
 			yield i
 
-	# def gen_encrypter(rv, *args, **kwargs):
-	# 	return rv
+class DebugEncrypter:
+	def __init__(self):
+		self.gen_encrypter = self.encrypter
+		self.gen_decrypter = self.decrypter
+		self.gen_encryption = True
 
-	# def gen_decrypter(rv, *args, **kwargs):
-	# 	return rv
+	def encrypter(self, generator, *args, **kwargs):
+		for i in generator:
+			print(f"enx: {i}")
+			for j in i:
+				print(f"\t{j}")
+				yield j
+
+	def decrypter(self, generator, *args, **kwargs):
+		for i in generator:
+			print(i, end="")
+			yield i
+		print("")
+

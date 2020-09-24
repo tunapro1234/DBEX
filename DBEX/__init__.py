@@ -1,4 +1,5 @@
 from dbex.lib.encryption import DBEXDefaultEncrypter as DefaultEncryptionClass
+from dbex.lib.encryption import DebugEncrypter
 from dbex.lib.encoder import Encoder
 from dbex.lib.decoder import Decoder
 

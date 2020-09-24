@@ -1,3 +1,4 @@
+from dbex.__init__ import DebugEncrypter
 from dbex.__init__ import Decoder  # sonunda
 from dbex.__init__ import Encoder
 import unittest
@@ -117,8 +118,8 @@ class TestMainPackage(unittest.TestCase):
 	def test_dumps_loads(self):
 		tester = "{12: 23, 34: 45}"
 
-		result = enc.dumps(dec.loads(tester, max_depth="all"))
-		result2 = enc.dumps(dec.loads(tester))
+		result = enc.dumps(dec.loads(tester))
+		result2 = enc.dumps(dec.loads(tester, max_depth="all"))
 
 		self.assertEqual(tester, result)
 		self.assertEqual(tester, result2)
@@ -126,19 +127,23 @@ class TestMainPackage(unittest.TestCase):
 
 	def test_loads_dumps(self):
 		tester = {12: 23, 34: 45}
-
-		result = dec.loads(enc.dumps(tester, max_depth="all"))
-		result2 = dec.loads(enc.dumps(tester))
-
+		
+		result = dec.loads(enc.dumps(tester))
 		self.assertEqual(tester, result)
+
+
+	def test_loads_dumps2(self):
+		tester = {12: 23, 34: 45}
+		
+		result2 = dec.loads(lambda: enc.dumps(tester, max_depth="all"))
 		self.assertEqual(tester, result2)
 		# print(f"{tester}\n{result}\n{result2}")
 	
 	def test_dumps_loads(self):
 		tester = '["json bunu yapabilir mi?", "tunapro", [[]]]'
 
-		result = enc.dumps(dec.loads(tester, max_depth="all"))
-		result2 = enc.dumps(dec.loads(tester))
+		result = enc.dumps(dec.loads(tester))
+		result2 = enc.dumps(dec.loads(tester, max_depth="all"))
 
 		self.assertEqual(tester, result)
 		self.assertEqual(tester, result2)

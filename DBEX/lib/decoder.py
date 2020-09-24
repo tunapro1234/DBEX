@@ -75,15 +75,15 @@ class Decoder:
 				 json_compability=1,
 				 database_shape=None,
 				 decrypter_args=None,
+				 encryption_obj=None,
 				 decrypter_kwargs=None,
 				 file_encoding="utf-8",
-				 changed_file_action=0,
-				 encryption_class=None):
+				 changed_file_action=0):
 
 		self.changed_file_action = changed_file_action
 		self.json_compability = json_compability
-		self.encryption_class = encryption_class
 		self.decrypter_kwargs = decrypter_kwargs
+		self.encryption_obj = encryption_obj
 		self.decrypter_args = decrypter_args
 		self.database_shape = database_shape
 		self.file_encoding = file_encoding
@@ -95,10 +95,10 @@ class Decoder:
 
 		self.decrypter = None
 		self.decrypter_gen = None
-		if encryption_class is not None:
-			if hasattr(encryption_class, "gen_encryption"):
-				self.decrypter_gen = lambda: encryption_class.gen_decrypter
-			self.decrypter = lambda: encryption_class.decrypter
+		if encryption_obj is not None:
+			if hasattr(encryption_obj, "gen_encryption"):
+				self.decrypter_gen = encryption_obj.gen_decrypter
+			self.decrypter = encryption_obj.decrypter
 
 	def __tokenize(self, string, tokenizers=None):
 		"""Verilen tokenizerları verilen string (ya da generator) 
@@ -118,15 +118,21 @@ class Decoder:
 		ending_index = 0
 		#   Ki bir daha token bulduğumzda eskisi
 		# ile yeni bulunan arasını da yollayabilelim
-
+		
+		# gen_func verilirse uyum sağlamak için
+		# while not isinstance(string, Iterable):
+		string = string() if callable(string) else string
+		
 		for index, char in enumerate(string):
-			if char in tokenizers:
+			# 	eğer string yerine generator verilirse ve bu 
+			# generator ", " şeklinde döndürürse sıkıntı olmasın diye strip
+			if char.strip() != "" and char.strip() in tokenizers:
 				# "" önlemek için
 				if index > (last_token_index + 1):
 					# son token ile şu anki token arasını yolla
 					yield temp
 				# tokenın kendinsini yolla
-				yield char
+				yield char.strip()
 				temp = ""
 				# son token şimdiki token
 				last_token_index = index
@@ -150,7 +156,8 @@ class Decoder:
 
 		Yields:
 			str: her bir parça (ya token ya da element)
-		"""
+		"""		
+		
 		errpos = 0
 		tokenizers = self.default_tokenizers if tokenizers is None else tokenizers
 		#   eğer tırnak işaret ile string değer
@@ -160,7 +167,7 @@ class Decoder:
 		is_string = False
 		# Önceki elemanın \ olup olmadığı
 		is_prv_bs = False
-
+	
 		for part in self.__tokenize(reader_gen, tokenizers):
 			if part in ["'", '"', "\\"]:
 				# Parça tırnak işaretiyse
@@ -264,7 +271,8 @@ class Decoder:
 		kwargs["gen_lvl"] = gen_lvl + 1
 		# gen_lvl sadece burada arttırılıyor
 
-		gen = generator_func()  # fonksiyondan bir tane generaotr koparıyoruz
+		if (gen := generator_func()) is None:  # fonksiyondan bir tane generaotr koparıyoruz
+			raise DBEXDecodeError("Okuma hatasi", code=0)
 
 		# 	Şimdi bize bir index veriliyor ve bu index, dönüştürülmesi istenen objenin 
 		# generator_functionın döndürdüğü generatorın kaçıncı elemanı olduğunun sayacı
@@ -569,6 +577,8 @@ class Decoder:
 		max_depth = self.max_depth if max_depth is None else max_depth
 		kwargs["max_depth"] = "all" if sort_keys else max_depth
 		
+		# inputObj = inputObj if type(inputObj) is str else lambda: inputObj
+		
 		final = self.__convert(lambda: self.__tokenize_control(inputObj), **kwargs)
 		return self.sort_keys_(final) if sort_keys else final
 
@@ -583,11 +593,11 @@ class Decoder:
 		
 		encoding = self.file_encoding if encoding is None else encoding
 		path = self.path if path is None else path
-		
+
 		if decrypter:
 			decrypter_args = [] if decrypter_args is None else decrypter_args
 			decrypter_kwargs = {} if decrypter_kwargs is None else decrypter_kwargs
-			generator_func = lambda: self.__tokenize_control(decrypter(self.read(path=path, encoding=encoding), *decrypter_args, **decrypter_kwargs))
+			generator_func = lambda: self.__tokenize_control(decrypter(self.read_gen(path=path, encoding=encoding), *decrypter_args, **decrypter_kwargs))
 		else:
 			generator_func = lambda: self.__tokenize_control(self.read(path=path, encoding=encoding))
 		
@@ -675,3 +685,16 @@ class Decoder:
 
 	def sort_keys(self, rv, *args, **kwargs):
 		return rv
+
+def test():
+	from encoder import Encoder
+	dec, enc = Decoder(), Encoder()
+
+	tester = {12: 23, 34: 45}
+
+	result = dec.loads(lambda: enc.dumps(tester, max_depth="all"))
+	print(result, tester, sep="\n")
+	assert tester == result
+
+if __name__ == "__main__":
+	test()
