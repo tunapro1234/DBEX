@@ -284,3 +284,9 @@ class TestDecoder(unittest.TestCase):
 
         result = "".join([i for i in dec.read_gen_safe(self.test_file)])
         self.assertEqual(tester, result)
+
+    def test_sort_keys(self):
+        obj = '{"c": "3", "b": "2", "a": "1"}'
+        result = dec.loads(obj, sort_keys=True)
+        correct_result = {"a": "1", "b": "2", "c": "3"}
+        self.assertEqual(result, correct_result)

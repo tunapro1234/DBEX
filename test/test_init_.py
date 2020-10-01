@@ -28,6 +28,7 @@ def gen_normalize(gen_func, *args, **kwargs):
 
 def _print_gen(gen_func, *args, **kwargs):
     gen = gen_func()
+    final = None
     if gen_func.__name__ == "dict_gen":
         final = {}
         for key, value in gen:
@@ -66,10 +67,8 @@ class TestMainPackage(unittest.TestCase):
         with open(self.test_file, "w+") as file:
             file.write(str(correct_result))
 
-        result = dec.load(self.test_file)
+        result = dec.load(path=self.test_file)
         self.assertEqual(result, correct_result)
-
-        os.remove(self.test_file)
 
     def test_loads(self):
         result = dec.loads("{12:23,34:45}")
@@ -81,10 +80,9 @@ class TestMainPackage(unittest.TestCase):
         with open(self.test_file, "w+") as file:
             file.write(str(correct_result))
 
-        result = dec.gen_normalizer(dec.loader(path=self.test_file))
+        result = dec.load(path=self.test_file, max_depth=0)
+        result = dec.gen_normalizer(result)
         self.assertEqual(result, correct_result)
-
-        os.remove(self.test_file)
 
     ##########################################################
 
@@ -99,8 +97,6 @@ class TestMainPackage(unittest.TestCase):
 
         self.assertEqual(result, correct_result)
 
-        os.remove(self.test_file)
-
     def test_dumps(self):
         tester = []
         result = enc.dumps(tester)
@@ -110,15 +106,13 @@ class TestMainPackage(unittest.TestCase):
     def test_dumper(self):
         import json
         tester = ["tuna", "pro", "12", "34"]
-        enc.dumper(tester, path=self.test_file, indent=0)
+        enc.dump(tester, path=self.test_file, max_depth="all", indent=0)
         correct_result = json.dumps(tester)
 
         with open(self.test_file, "r") as file:
             result = file.read()
 
         self.assertEqual(result, correct_result)
-
-        os.remove(self.test_file)
 
     ##########################################################
 

@@ -1,4 +1,4 @@
-import dbex.test.sort_items_test as sorter
+import dbex.lib.sort_items as sorter
 import unittest
 import os
 

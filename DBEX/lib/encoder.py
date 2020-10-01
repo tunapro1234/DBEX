@@ -1,4 +1,5 @@
 # from dbex.lib.encryption import DBEXDefaultEncrypter as DefaultEncryptionClass
+from dbex.lib.sort_items import sorter as sorter_func
 from dbex.lib.encryption import DBEXMetaEncrypter
 import dbex.res.globalv as gvars
 # import types
@@ -49,6 +50,8 @@ kesin bir bokluk çıkacak
 
 """
 
+sort_keys_func = sorter_func
+
 
 class Encoder:
     def __init__(self,
@@ -76,7 +79,7 @@ class Encoder:
         self.file_encoding = file_encoding
         self.header_path = header_path
         self.seperators = seperators
-        self.sort_keys_ = sort_keys
+        self.sort_keys = sort_keys
         self.max_depth = max_depth
         self.allow_nan = allow_nan
         self.indent = indent
@@ -327,13 +330,13 @@ class Encoder:
         Returns:
             [type]: [description]
         """
-        sort_keys = self.sort_keys_ if sort_keys is None else sort_keys
+        sort_keys = self.sort_keys if sort_keys is None else sort_keys
         max_depth = self.max_depth if max_depth is None else max_depth
         kwargs["max_depth"] = max_depth
 
         if sort_keys:
             max_depth = 0
-            inputObj = self.sort_keys(inputObj)
+            inputObj = sort_keys_func(inputObj)
 
         # yapf: disable
         if type(max_depth) is int and max_depth <= 0:
@@ -362,14 +365,14 @@ class Encoder:
         # encrypter = self.encrypter_gen if encrypter is None else encrypter
 
         encoding = self.file_encoding if encoding is None else encoding
-        sort_keys = self.sort_keys_ if sort_keys is None else sort_keys
+        sort_keys = self.sort_keys if sort_keys is None else sort_keys
         max_depth = self.max_depth if max_depth is None else max_depth
 
         if path is None:
             max_depth, path = 0, file.name if file is not None else self.path
 
         if sort_keys:
-            inputObj = self.sort_keys(inputObj)
+            inputObj = self.sort_keys_func(inputObj)
 
         # rv = "".join([i for i in self.__convert(inputObj, **kwargs)])
         if type(max_depth) is int and max_depth <= 0:
@@ -479,6 +482,3 @@ class Encoder:
             return False
         else:
             return True
-
-    def sort_keys(self, *args, **kwargs):
-        return args

@@ -1,3 +1,11 @@
+# from dbex.lib.encryption import DBEXDefaultEncrypter as DefaultEncryptionClass
+from dbex.lib.sort_items import sorter as sorter_func
+from dbex.lib.encryption import DBEXMetaEncrypter
+import dbex.res.globalv as gvars
+# import types
+# import time
+
+__version__ = gvars.version()
 """
 Evveettt dün 10 saat uğraşıp baştan yazdığım encoder classına yaptığım geliştirmeyi decoder classına da yapma zamanı geldi
 sonra köle gibi yorumlamam gerekiyor
@@ -37,14 +45,6 @@ __convert_obj yaptım
 hadi başlayalım
 """
 
-# from dbex.lib.encryption import DBEXDefaultEncrypter as DefaultEncryptionClass
-from dbex.lib.encryption import DBEXMetaEncrypter
-import dbex.res.globalv as gvars
-# import types
-# import time
-
-__version__ = gvars.version()
-
 
 class DBEXDecodeError(ValueError):
     # biraz çaldım gibi
@@ -60,6 +60,9 @@ class DBEXDecodeError(ValueError):
 
     def __reduce__(self):
         return self.__class__, (self.msg, self.doc, self.pos)
+
+
+sort_keys_func = sorter_func
 
 
 class Decoder:
@@ -88,7 +91,7 @@ class Decoder:
         self.database_shape = database_shape
         self.file_encoding = file_encoding
         self.header_path = header_path
-        self.sort_keys_ = sort_keys
+        self.sort_keys = sort_keys
         self.max_depth = max_depth
         self.header = header
         self.path = path
@@ -577,14 +580,14 @@ class Decoder:
         raise DBEXDecodeError("parantezin kapanisi bulanamadi", 0)
 
     def loads(self, inputObj, max_depth=None, sort_keys=None, **kwargs):
-        sort_keys = self.sort_keys_ if sort_keys is None else sort_keys
+        sort_keys = self.sort_keys if sort_keys is None else sort_keys
         max_depth = self.max_depth if max_depth is None else max_depth
         kwargs["max_depth"] = "all" if sort_keys else max_depth
 
         # inputObj = inputObj if type(inputObj) is str else lambda: inputObj
 
         final = self.__convert(lambda: self.__tokenize_control(inputObj), **kwargs)
-        return self.sort_keys_(final) if sort_keys else final
+        return sort_keys_func(final) if sort_keys else final
 
     def load(self, file=None, path=None, max_depth=None, sort_keys=None, encoding=None, decrypter=None, decrypter_args=None, decrypter_kwargs=None, **kwargs):
         # max_depth = None # vazgeçtim
@@ -592,7 +595,7 @@ class Decoder:
         decrypter_args = self.decrypter_args if decrypter_args is None else decrypter_args
         decrypter = self.decrypter if decrypter is None else decrypter
 
-        sort_keys = self.sort_keys_ if sort_keys is None else sort_keys
+        sort_keys = self.sort_keys if sort_keys is None else sort_keys
         kwargs["max_depth"] = "all" if max_depth is None or sort_keys else max_depth # load ve dumpta max_depth iptal -yoo (gelecekteki tuna)
 
         encoding = self.file_encoding if encoding is None else encoding
@@ -613,7 +616,7 @@ class Decoder:
 
 
         final = self.__convert(generator_func, **kwargs)
-        return self.sort_keys_(final) if sort_keys else final
+        return sort_keys_func(final) if sort_keys else final
         # return self.__convert(generator_func, **kwargs)
 
     def gen_normalizer(self, gen_func, recursion=True):
