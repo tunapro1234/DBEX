@@ -589,7 +589,17 @@ class Decoder:
         final = self.__convert(lambda: self.__tokenize_control(inputObj), **kwargs)
         return sort_keys_func(final) if sort_keys else final
 
-    def load(self, file=None, path=None, max_depth=None, sort_keys=None, encoding=None, decrypter=None, decrypter_args=None, decrypter_kwargs=None, **kwargs):
+    def load(self,
+             file=None,
+             path=None,
+             max_depth=None,
+             sort_keys=None,
+             encoding=None,
+             decrypter=None,
+             decrypter_args=None,
+             decrypter_kwargs=None,
+             **kwargs):
+
         # max_depth = None # vazgeçtim
         decrypter_kwargs = self.decrypter_kwargs if decrypter_kwargs is None else decrypter_kwargs
         decrypter_args = self.decrypter_args if decrypter_args is None else decrypter_args

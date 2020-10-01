@@ -7,17 +7,20 @@ from dbex.lib.decoder import Decoder
 """######################################################
 #	Dump ve Load fonksiyonlarına FILE-PATH düzenlemesi lazım
 #	Decoder ve Encoder için backslash geliştirmesi
+#	
 #	Biraz daha açıklama koymam çok hoş olabilirdi
 #	Encoder dump fonksiyonlarına doc string ekle
+#	
 #	WRITE_GEN için file parametresi eklenebilir
-#	Decoder ve Encoderda sort_keys
 #	HATA ISIMLENDIRMELERI
 #	
 #	Encoder kısmı Decoder koduna göre çok düzensiz kaçıyor 
 #		- yoo (gelecekteki tuna)    
 #			- yoo öyle (daha da gelecekteki tuna) 
 #	
+#	Decoder ve Encoderda sort_keys geliştirilebilir
 #	Decoder kodu en az 4 kere dosyayı baştan okuyor ona bi el at
+#		- muhtemelen bir şey yapamam
 ######################################################"""
 
 #   Class oluşturmanız için zorlamayı
