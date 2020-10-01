@@ -586,7 +586,7 @@ class Decoder:
         final = self.__convert(lambda: self.__tokenize_control(inputObj), **kwargs)
         return self.sort_keys_(final) if sort_keys else final
 
-    def load(self, path=None, max_depth=None, sort_keys=None, encoding=None, decrypter=None, decrypter_args=None, decrypter_kwargs=None, **kwargs):
+    def load(self, file=None, path=None, max_depth=None, sort_keys=None, encoding=None, decrypter=None, decrypter_args=None, decrypter_kwargs=None, **kwargs):
         # max_depth = None # vazgeçtim
         decrypter_kwargs = self.decrypter_kwargs if decrypter_kwargs is None else decrypter_kwargs
         decrypter_args = self.decrypter_args if decrypter_args is None else decrypter_args
@@ -596,12 +596,18 @@ class Decoder:
         kwargs["max_depth"] = "all" if max_depth is None or sort_keys else max_depth # load ve dumpta max_depth iptal -yoo (gelecekteki tuna)
 
         encoding = self.file_encoding if encoding is None else encoding
-        path = self.path if path is None else path
+
+        if path is None:
+            path = file.name if file is not None else self.path
+
+        decrypter_args = [] if decrypter_args is None else decrypter_args
+        decrypter_kwargs = {} if decrypter_kwargs is None else decrypter_kwargs
 
         if decrypter:
-            decrypter_args = [] if decrypter_args is None else decrypter_args
-            decrypter_kwargs = {} if decrypter_kwargs is None else decrypter_kwargs
-            generator_func = lambda: self.__tokenize_control(decrypter(self.read_gen(path=path, encoding=encoding), *decrypter_args, **decrypter_kwargs))
+            if decrypter is self.decrypter_gen:
+                generator_func = lambda: self.__tokenize_control(decrypter(self.read_gen(path=path, encoding=encoding), *decrypter_args, **decrypter_kwargs))
+            else:
+                generator_func = lambda: self.__tokenize_control(decrypter(self.read(path=path, encoding=encoding), *decrypter_args, **decrypter_kwargs))
         else:
             generator_func = lambda: self.__tokenize_control(self.read(path=path, encoding=encoding))
 
@@ -609,24 +615,6 @@ class Decoder:
         final = self.__convert(generator_func, **kwargs)
         return self.sort_keys_(final) if sort_keys else final
         # return self.__convert(generator_func, **kwargs)
-
-    def loader(self, path=None, max_depth=None, encoding=None, decrypter=None, decrypter_args=None, decrypter_kwargs=None, **kwargs):
-        decrypter_kwargs = self.decrypter_kwargs if decrypter_kwargs is None else decrypter_kwargs
-        decrypter_args = self.decrypter_args if decrypter_args is None else decrypter_args
-        decrypter = self.decrypter_gen if decrypter is None else decrypter
-
-        encoding = self.file_encoding if encoding is None else encoding
-        kwargs["max_depth"] = 0 if max_depth is None else max_depth
-        path = self.path if path is None else path
-
-        if decrypter:
-            decrypter_args = [] if decrypter_args is None else decrypter_args
-            decrypter_kwargs = {} if decrypter_kwargs is None else decrypter_kwargs
-            generator_func = lambda: self.__tokenize_control(decrypter(self.read_gen_safe(path=path, encoding=encoding), *decrypter_args, **decrypter_kwargs))
-        else:
-            generator_func = lambda: self.__tokenize_control(self.read_gen_safe(path=path, encoding=encoding))
-
-        return self.__convert(generator_func, **kwargs)
 
     def gen_normalizer(self, gen_func, recursion=True):
         """__convert fonksiyonun generator fonksiyonunu objeye dönüştüren fonksiyon

@@ -115,7 +115,7 @@ class ExapmleEncrypter3(metaclass=DBEXMetaEncrypter):
                     temp += char
 
 
-class DebugEncrypter:
+class DebugEncrypter(metaclass=DBEXMetaEncrypter):
     gen_encryption = True
     gen_encrypter = None
     gen_decrypter = None

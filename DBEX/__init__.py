@@ -5,10 +5,12 @@ from dbex.lib.decoder import Decoder
 
 "                       TO DO:                       "
 """######################################################
-#	Decoder ve Encoderda sort_keys
-#	Encoder dump fonksiyonlarına doc string ekle
-#	Biraz daha açıklama koymam çok hoş olabilirdi
+#	Dump ve Load fonksiyonlarına FILE-PATH düzenlemesi lazım
 #	Decoder ve Encoder için backslash geliştirmesi
+#	Biraz daha açıklama koymam çok hoş olabilirdi
+#	Encoder dump fonksiyonlarına doc string ekle
+#	WRITE_GEN için file parametresi eklenebilir
+#	Decoder ve Encoderda sort_keys
 #	HATA ISIMLENDIRMELERI
 #	
 #	Encoder kısmı Decoder koduna göre çok düzensiz kaçıyor 

@@ -1,3 +1,4 @@
+from dbex.lib.encryption import DBEXMetaEncrypter
 from dbex.__init__ import DebugEncrypter
 from dbex.__init__ import Decoder  # sonunda
 from dbex.__init__ import Encoder
@@ -79,11 +80,14 @@ class TestEncryption(unittest.TestCase):
         self.assertEqual(decrypted, tester)
 
 
-class EmptyEncrypter:
+class EmptyEncrypter(metaclass=DBEXMetaEncrypter):
+    gen_encryption = True
+    gen_encrypter = None
+    gen_decrypter = None
+
     def __init__(self):
         self.gen_encrypter = self.encrypter
         self.gen_decrypter = self.decrypter
-        self.gen_encryption = True
 
     def encrypter(self, generator, *args, **kwargs):
         for i in generator:
@@ -94,12 +98,15 @@ class EmptyEncrypter:
             yield i
 
 
-class TestEncrypter1:
+class TestEncrypter1(metaclass=DBEXMetaEncrypter):
+    gen_encryption = True
+    gen_decrypter = None
+    gen_encrypter = None
+
     def __init__(self, password=None, sep="."):
         self.password = password if password is not None else None
         self.gen_decrypter = self.decrypter
         self.gen_encrypter = self.encrypter
-        self.gen_encryption = True
         self.sep = sep
 
     def encrypter(self, generator, *args, **kwargs):

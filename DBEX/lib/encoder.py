@@ -341,7 +341,7 @@ class Encoder:
         else:
             return self.__convert(inputObj, **kwargs)
 
-    def dump(self, inputObj, path=None, max_depth=None, sort_keys=None, encoding=None, encrypter=None, encrypter_args=None, encrypter_kwargs=None, **kwargs):
+    def dump(self, inputObj, file=None, path=None, max_depth=None, sort_keys=None, encoding=None, encrypter=None, encrypter_args=None, encrypter_kwargs=None, **kwargs):
         """[summary]
 
         Args:
@@ -364,7 +364,9 @@ class Encoder:
         encoding = self.file_encoding if encoding is None else encoding
         sort_keys = self.sort_keys_ if sort_keys is None else sort_keys
         max_depth = self.max_depth if max_depth is None else max_depth
-        path = self.path if path is None else path
+
+        if path is None:
+            max_depth, path = 0, file.name if file is not None else self.path
 
         if sort_keys:
             inputObj = self.sort_keys(inputObj)
@@ -377,44 +379,22 @@ class Encoder:
             rv = self.__convert(inputObj, **kwargs)
             encrypter = self.encrypter_gen if encrypter is None else encrypter
 
-        if encrypter:
-            encrypter_args = [] if encrypter_args is None else encrypter_args
-            encrypter_kwargs = {} if encrypter_kwargs is None else encrypter_kwargs
-            return self.write_gen(encrypter(rv, *encrypter_args, **encrypter_kwargs), path=path, encoding=encoding)
+        encrypter_args = [] if encrypter_args is None else encrypter_args
+        encrypter_kwargs = {} if encrypter_kwargs is None else encrypter_kwargs
+
+        if file is not None:
+            if encrypter:
+                return self.write(encrypter(rv, *encrypter_args, **encrypter_kwargs), file=file, encoding=encoding)
+            else:
+                return self.write(rv, file=file, encoding=encoding)
+
         else:
-            return self.write_gen(rv, path=path, encoding=encoding)
+            if encrypter:
+                return self.write_gen(encrypter(rv, *encrypter_args, **encrypter_kwargs), path=path, encoding=encoding)
+            else:
+                return self.write_gen(rv, path=path, encoding=encoding)
 
-    def dumper(self, inputObj, path=None, encoding=None, encrypter=None, encrypter_args=None, encrypter_kwargs=None, **kwargs):
-        """[summary]
-
-        Args:
-            inputObj (any): [description]
-            path (str): [description]. Defaults to None.
-            max_depth (int):
-            indent (int):
-            allow_nan (bool, optional):
-            seperators ((str [virgül], str[iki nokta])):
-        
-        Returns:
-            [type]: [description]
-        """
-        encrypter_kwargs = self.encrypter_kwargs if encrypter_kwargs is None else encrypter_kwargs
-        encrypter_args = self.encrypter_args if encrypter_args is None else encrypter_args
-        encrypter = self.encrypter_gen if encrypter is None else encrypter
-
-        encoding = self.file_encoding if encoding is None else encoding
-        path = self.path if path is None else path
-
-        # yapf: disable
-        generator = self.__convert(inputObj, **kwargs)
-        if encrypter:
-            encrypter_args = [] if encrypter_args is None else encrypter_args
-            encrypter_kwargs = {} if encrypter_kwargs is None else encrypter_kwargs
-            return self.write_gen_safe(encrypter(generator, *encrypter_args, **encrypter_kwargs), path=path, encoding=encoding)
-        else:
-            return self.write_gen_safe(generator, path=path, encoding=encoding)
-
-    def write(self, string, path=None, encoding=None):
+    def write(self, string, path=None, file=None, encoding=None):
         """Verilen stringi verilen pathe yazdırır.
 
         Args:
@@ -427,16 +407,26 @@ class Encoder:
         Returns:
             bool: İşlem başarılıysa True değilse False
         """
-        path = self.path if path is None else path
+
         encoding = self.file_encoding if encoding is None else encoding
+        path = self.path if path is None else path
+        rv = c_file = None
 
         try:
-            with open(path, "w+", encoding=encoding) as file:
-                file.write(string)
+            c_file = file if file is not None else open(path, "w+", encoding=encoding)
+            c_file.write(string)
+
         except:
-            return False
+            rv = False
+
         else:
-            return True
+            rv = True
+
+        finally:
+            if file is None:
+                c_file.close()
+
+        return rv
 
     def write_gen(self, generator, path=None, encoding=None):
         """Generator objesinin döndürüğü stringleri verilen pathe yazdırır.
