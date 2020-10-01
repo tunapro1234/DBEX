@@ -106,15 +106,15 @@ class Decoder:
 
     def __tokenize(self, string, tokenizers=None):
         """Verilen tokenizerları verilen string (ya da generator) 
-		içinden alıp ayıklıyor (string değer kontrolü yok)
+        içinden alıp ayıklıyor (string değer kontrolü yok)
 
-		Args:
-			string (str): [string ya da stringi döndüren bir generator]
-			tokenizers (str): tokenizerlar işte. Defaults to Decoder.default_tokenizers.
+        Args:
+            string (str): [string ya da stringi döndüren bir generator]
+            tokenizers (str): tokenizerlar işte. Defaults to Decoder.default_tokenizers.
 
-		Yields:
-			str: her bir özel parça ve arasında kalanlar
-		"""
+        Yields:
+            str: her bir özel parça ve arasında kalanlar
+        """
         tokenizers = self.default_tokenizers if tokenizers is None else tokenizers
         # Son token indexi
         temp = ""
