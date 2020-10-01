@@ -584,18 +584,15 @@ class Decoder:
         max_depth = self.max_depth if max_depth is None else max_depth
         kwargs["max_depth"] = "all" if sort_keys else max_depth
 
-        # inputObj = inputObj if type(inputObj) is str else lambda: inputObj
-
         final = self.__convert(lambda: self.__tokenize_control(inputObj), **kwargs)
         return sort_keys_func(final) if sort_keys else final
 
     def load(self,
              file=None,
-             path=None,
              max_depth=None,
              sort_keys=None,
              encoding=None,
-             decrypter=None,
+             encryption_obj=None,
              decrypter_args=None,
              decrypter_kwargs=None,
              **kwargs):
@@ -603,26 +600,42 @@ class Decoder:
         # max_depth = None # vazgeçtim
         decrypter_kwargs = self.decrypter_kwargs if decrypter_kwargs is None else decrypter_kwargs
         decrypter_args = self.decrypter_args if decrypter_args is None else decrypter_args
+        decrypter_kwargs = {} if decrypter_kwargs is None else decrypter_kwargs
+        decrypter_args = [] if decrypter_args is None else decrypter_args
+
+        decrypter_gen = decrypter = None
+        if encryption_obj is not None:
+            if type(type(encryption_obj)) is DBEXMetaEncrypter:
+                if encryption_obj.gen_encryption:
+                    decrypter_gen = encryption_obj.gen_decrypter
+                decrypter = encryption_obj.decrypter
+
+            else:
+                raise TypeError("Must use DBEXMetaEncrypter on Encryption class objects")
+
+        decrypter_gen = self.decrypter_gen if decrypter_gen is None else decrypter_gen
         decrypter = self.decrypter if decrypter is None else decrypter
 
+
+        max_depth = self.max_depth if max_depth is None else max_depth # load ve dumpta max_depth iptal -yoo (gelecekteki tuna)
         sort_keys = self.sort_keys if sort_keys is None else sort_keys
-        kwargs["max_depth"] = "all" if max_depth is None or sort_keys else max_depth # load ve dumpta max_depth iptal -yoo (gelecekteki tuna)
+        kwargs["max_depth"] = "all" if sort_keys else max_depth
 
         encoding = self.file_encoding if encoding is None else encoding
+        file = self.path if file is None else file
 
-        if path is None:
-            path = file.name if file is not None else self.path
+        if decrypter_gen:
+            generator_func = lambda: self.__tokenize_control(
+                decrypter(self.read_gen(file=file, encoding=encoding),
+                        *decrypter_args, **decrypter_kwargs))
+        elif decrypter:
+            generator_func = lambda: self.__tokenize_control(
+                decrypter(self.read(file=file, encoding=encoding),
+                        *decrypter_args, **decrypter_kwargs))
 
-        decrypter_args = [] if decrypter_args is None else decrypter_args
-        decrypter_kwargs = {} if decrypter_kwargs is None else decrypter_kwargs
-
-        if decrypter:
-            if decrypter is self.decrypter_gen:
-                generator_func = lambda: self.__tokenize_control(decrypter(self.read_gen(path=path, encoding=encoding), *decrypter_args, **decrypter_kwargs))
-            else:
-                generator_func = lambda: self.__tokenize_control(decrypter(self.read(path=path, encoding=encoding), *decrypter_args, **decrypter_kwargs))
         else:
-            generator_func = lambda: self.__tokenize_control(self.read(path=path, encoding=encoding))
+            generator_func = lambda: self.__tokenize_control(
+                self.read(file=file, encoding=encoding))
 
 
         final = self.__convert(generator_func, **kwargs)
@@ -659,23 +672,41 @@ class Decoder:
 
         return tuple(final) if gen_func.__name__ == "tuple_gen" else final
 
-    def read(self, path=None, encoding=None):
+    def read(self, file=None, encoding=None):
         # sort keys olayına göz at
         # decrypter = self.default_decrypter if decrypter is None else decrypter
         encoding = self.file_encoding if encoding is None else encoding
-        path = self.path if path is None else path
+        file = self.path if file is None else file
 
-        with open(path) as file:
+        # file = open(file) if type(file) is str else file
+        # read = file.read()
+        # file = file.close() if type(file) is str else file
+
+        if type(file) is str:
+            with open(file, encoding=encoding) as file:
+                return file.read()
+        else:
             return file.read()
 
-    def read_gen(self, path=None, encoding=None):
+    def read_gen(self, file=None, encoding=None):
         encoding = self.file_encoding if encoding is None else encoding
-        path = self.path if path is None else path
+        file = self.path if file is None else file
+
+        # char = True
+        # file = open(file) if type(file) is str else file
+        # while char:
+        #     yield (char := file.read(1))
+        # file = file.close() if type(file) is str else file
 
         char = True
-        with open(path) as file:
+        if type(file) is str:
+            with open(file, encoding=encoding) as file:
+                while char:
+                    yield (char := file.read(1))
+        else:
             while char:
                 yield (char := file.read(1))
+
 
     def read_gen_safe(self, path=None, encoding=None):
         encoding = self.file_encoding if encoding is None else encoding

@@ -344,21 +344,17 @@ class Encoder:
         else:
             return self.__convert(inputObj, **kwargs)
 
-    def dump(self, inputObj, file=None, path=None, max_depth=None, sort_keys=None, encoding=None, encrypter=None, encrypter_args=None, encrypter_kwargs=None, **kwargs):
-        """[summary]
-
-        Args:
-            inputObj (any): [description]
-            path (str): [description]. Defaults to None.
-            indent (int):
-            sort_keys (bool):
-            allow_nan (bool, optional):
-            seperators ((str [virgül], str[iki nokta])):
-        
-        Returns:
-            [type]: [description]
-        
-        """
+    def dump(self,
+             inputObj,
+             file=None,
+             path=None,
+             max_depth=None,
+             sort_keys=None,
+             encoding=None,
+             encrypter=None,
+             encrypter_args=None,
+             encrypter_kwargs=None,
+             **kwargs):
 
         encrypter_kwargs = self.encrypter_kwargs if encrypter_kwargs is None else encrypter_kwargs
         encrypter_args = self.encrypter_args if encrypter_args is None else encrypter_args
@@ -397,7 +393,7 @@ class Encoder:
             else:
                 return self.write_gen(rv, path=path, encoding=encoding)
 
-    def write(self, string, path=None, file=None, encoding=None):
+    def write(self, string, file=None, encoding=None):
         """Verilen stringi verilen pathe yazdırır.
 
         Args:
@@ -412,24 +408,19 @@ class Encoder:
         """
 
         encoding = self.file_encoding if encoding is None else encoding
-        path = self.path if path is None else path
-        rv = c_file = None
+        file = self.path if file is None else file
 
         try:
-            c_file = file if file is not None else open(path, "w+", encoding=encoding)
-            c_file.write(string)
-
+            if type(file) is str:
+                with open(file, "w+", encoding=encoding) as f:
+                    f.write(string)
+            else:
+                file.write(string)
         except:
-            rv = False
-
+            return False
         else:
-            rv = True
+            return True
 
-        finally:
-            if file is None:
-                c_file.close()
-
-        return rv
 
     def write_gen(self, generator, path=None, encoding=None):
         """Generator objesinin döndürüğü stringleri verilen pathe yazdırır.
@@ -442,8 +433,8 @@ class Encoder:
         Returns:
             bool: İşlem başarılıysa True değilse False
         """
-        path = self.path if path is None else path
         encoding = self.file_encoding if encoding is None else encoding
+        path = self.path if path is None else path
 
         try:
             with open(path, "w+", encoding=encoding) as file:
