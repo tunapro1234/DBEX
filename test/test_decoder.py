@@ -160,7 +160,7 @@ class TestDecoder(unittest.TestCase):
         with open(self.test_file, "w+") as file:
             file.write(tester)
 
-        result = dec.load(path=self.test_file)
+        result = dec.load(self.test_file)
         self.assertEqual(result, correct_result)
 
     def test_loads(self):

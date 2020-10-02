@@ -1,3 +1,4 @@
+from unittest import result
 from dbex.lib.encoder import Encoder
 import unittest
 
@@ -130,12 +131,31 @@ class TestEncoder(unittest.TestCase):
         result = enc.dumps(tester)
         self.assertEqual(result, correct_result)
 
-        #####
-
+    def test_dumps_adv(self):
         tester = ["tunapro", [[]], [[]], [[0, "[\\]"]]]
         correct_result = '["tunapro", [[]], [[]], [[0, "[\\]"]]]'
 
         result = enc.dumps(tester)
+        self.assertEqual(result, correct_result)
+
+    def test_dump(self):
+        tester = ["tunapro"]
+        correct_result = '["tunapro"]'
+        enc.dump(tester, self.test_file)
+
+        with open(self.test_file) as file:
+            result = file.read()
+
+        self.assertEqual(result, correct_result)
+
+    def test_dump_adv(self):
+        tester = ["tunapro", [[]], [[]], [[0, "[\\]"]]]
+        correct_result = '["tunapro", [[]], [[]], [[0, "[\\]"]]]'
+        enc.dump(tester, self.test_file)
+
+        with open(self.test_file) as file:
+            result = file.read()
+
         self.assertEqual(result, correct_result)
 
 

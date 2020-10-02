@@ -67,7 +67,7 @@ class TestMainPackage(unittest.TestCase):
         with open(self.test_file, "w+") as file:
             file.write(str(correct_result))
 
-        result = dec.load(path=self.test_file)
+        result = dec.load(self.test_file)
         self.assertEqual(result, correct_result)
 
     def test_loads(self):
@@ -80,7 +80,7 @@ class TestMainPackage(unittest.TestCase):
         with open(self.test_file, "w+") as file:
             file.write(str(correct_result))
 
-        result = dec.load(path=self.test_file, max_depth=0)
+        result = dec.load(self.test_file, max_depth=0)
         result = dec.gen_normalizer(result)
         self.assertEqual(result, correct_result)
 
@@ -89,7 +89,7 @@ class TestMainPackage(unittest.TestCase):
     def test_dump(self):
         import json
         tester = ["tunapro1234"]
-        enc.dump(tester, path=self.test_file, indent=0)
+        enc.dump(tester, self.test_file, indent=0)
         correct_result = json.dumps(tester)
 
         with open(self.test_file, "r") as file:
@@ -106,7 +106,7 @@ class TestMainPackage(unittest.TestCase):
     def test_dumper(self):
         import json
         tester = ["tuna", "pro", "12", "34"]
-        enc.dump(tester, path=self.test_file, max_depth="all", indent=0)
+        enc.dump(tester, self.test_file, max_depth="all", indent=0)
         correct_result = json.dumps(tester)
 
         with open(self.test_file, "r") as file:

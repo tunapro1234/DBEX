@@ -347,51 +347,66 @@ class Encoder:
     def dump(self,
              inputObj,
              file=None,
-             path=None,
+             encoding=None,
              max_depth=None,
              sort_keys=None,
-             encoding=None,
-             encrypter=None,
+             encryption_obj=None,
              encrypter_args=None,
              encrypter_kwargs=None,
              **kwargs):
 
         encrypter_kwargs = self.encrypter_kwargs if encrypter_kwargs is None else encrypter_kwargs
         encrypter_args = self.encrypter_args if encrypter_args is None else encrypter_args
-        # encrypter = self.encrypter_gen if encrypter is None else encrypter
+        encrypter_kwargs = {} if encrypter_kwargs is None else encrypter_kwargs
+        encrypter_args = [] if encrypter_args is None else encrypter_args
+
+        encrypter_gen = encrypter = None
+        if encryption_obj is not None:
+            if type(type(encryption_obj)) is DBEXMetaEncrypter:
+                if encryption_obj.gen_encryption:
+                    encrypter_gen = encryption_obj.gen_encrypter
+                encrypter = encryption_obj.encrypter
+
+            else:
+                raise TypeError("Must use DBEXMetaEncrypter on Encryption class objects")
+
+        encrypter_gen = self.encrypter_gen if encrypter_gen is None else encrypter_gen
+        encrypter = self.encrypter if encrypter is None else encrypter
 
         encoding = self.file_encoding if encoding is None else encoding
         sort_keys = self.sort_keys if sort_keys is None else sort_keys
         max_depth = self.max_depth if max_depth is None else max_depth
 
-        if path is None:
-            max_depth, path = 0, file.name if file is not None else self.path
+        max_depth = self.max_depth if type(file) is not str else max_depth
 
         if sort_keys:
             inputObj = self.sort_keys_func(inputObj)
 
+
         # rv = "".join([i for i in self.__convert(inputObj, **kwargs)])
-        if type(max_depth) is int and max_depth <= 0:
+        if type(file) is not str or (
+            type(max_depth) is int and max_depth <= 0):
+
             rv = "".join([i for i in self.__convert(inputObj, **kwargs)])
-            encrypter = self.encrypter if encrypter is None else encrypter
+
         else:
             rv = self.__convert(inputObj, **kwargs)
-            encrypter = self.encrypter_gen if encrypter is None else encrypter
+            encrypter = encrypter_gen if encrypter_gen is not None else encrypter
 
-        encrypter_args = [] if encrypter_args is None else encrypter_args
-        encrypter_kwargs = {} if encrypter_kwargs is None else encrypter_kwargs
 
-        if file is not None:
-            if encrypter:
-                return self.write(encrypter(rv, *encrypter_args, **encrypter_kwargs), file=file, encoding=encoding)
-            else:
-                return self.write(rv, file=file, encoding=encoding)
+        if encrypter and encrypter == encrypter_gen and type(file) is str:
+            return self.write_gen_safe(encrypter(rv, *encrypter_args, **encrypter_kwargs), path=file, encoding=encoding)
+
+        elif encrypter:
+            return self.write(encrypter(rv, *encrypter_args, **encrypter_kwargs), file=file, encoding=encoding)
+
+        elif type(rv) is str: # file parametresi path değilse
+            return self.write(rv, file=file, encoding=encoding)
 
         else:
-            if encrypter:
-                return self.write_gen(encrypter(rv, *encrypter_args, **encrypter_kwargs), path=path, encoding=encoding)
-            else:
-                return self.write_gen(rv, path=path, encoding=encoding)
+            return self.write_gen_safe(rv, path=file, encoding=encoding)
+
+
 
     def write(self, string, file=None, encoding=None):
         """Verilen stringi verilen pathe yazdırır.

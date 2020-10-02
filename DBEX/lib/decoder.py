@@ -589,9 +589,9 @@ class Decoder:
 
     def load(self,
              file=None,
+             encoding=None,
              max_depth=None,
              sort_keys=None,
-             encoding=None,
              encryption_obj=None,
              decrypter_args=None,
              decrypter_kwargs=None,
