@@ -1,7 +1,7 @@
 # from dbex.lib.encryption import DBEXDefaultEncrypter as DefaultEncryptionClass
-from dbex.lib.sort_items import sorter as sorter_func
-from dbex.lib.encryption import DBEXMetaEncrypter
-import dbex.res.globalv as gvars
+from dbex.sort_items import sorter as sorter_func
+from dbex.encryption import DBEXMetaEncrypter
+import dbex.globalv as gvars
 # import types
 # import time
 

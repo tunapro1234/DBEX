@@ -1,7 +1,6 @@
-import dbex.res.globalv as gvars
+import dbex.globalv as gvars
 
 __version__ = gvars.version()
-
 """
 
 Hızlıca bir iki plan yapayım

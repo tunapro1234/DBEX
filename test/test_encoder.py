@@ -1,5 +1,5 @@
-from unittest import result
-from dbex.lib.encoder import Encoder
+from dbex.encoder import Encoder
+# from unittest import result
 import unittest
 
 enc = Encoder()

@@ -1,14 +1,11 @@
 from setuptools import setup
 
-__version__ = "0.0.10.2"
+__version__ = "0.0.10.6"
 
-
-def readMe():
-    with open("README.md") as file:
-        return file.read()
-
-
-readme = readMe()
+readme = """
+Json like decoder
+https://github.com/tunapro1234/dbex
+"""
 
 setup(
     name="dbex",

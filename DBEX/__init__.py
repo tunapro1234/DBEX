@@ -1,7 +1,7 @@
-from dbex.lib.encryption import ExampleEncrypter1 as DefaultEncryptionClass
-from dbex.lib.encryption import DebugEncrypter
-from dbex.lib.encoder import Encoder
-from dbex.lib.decoder import Decoder
+from dbex.encryption import ExampleEncrypter1 as DefaultEncryptionClass
+from dbex.encryption import DebugEncrypter
+from dbex.encoder import Encoder
+from dbex.decoder import Decoder
 """## TO DO ######################################################
 #	
 #	HEADER
