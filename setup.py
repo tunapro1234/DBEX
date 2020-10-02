@@ -20,7 +20,7 @@ setup(
     url="https://github.com/tunapro1234/dbex/",
     description="json-like encoder and decoder",
     keywords=["json", "file", "encryption", "save", "data"],
-    download_url="https://github.com/tunapro1234/DBEX/archive/v0.0.10.2.tar.gz",
+    download_url="https://github.com/tunapro1234/DBEX/archive/v0.0.10.6.tar.gz",
     classifiers=[
         'Intended Audience :: Developers',
         'Development Status :: 3 - Alpha',
