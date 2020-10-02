@@ -2,8 +2,6 @@ from dbex.lib.encryption import ExampleEncrypter1 as DefaultEncryptionClass
 from dbex.lib.encryption import DebugEncrypter
 from dbex.lib.encoder import Encoder
 from dbex.lib.decoder import Decoder
-
-
 """## TO DO ######################################################
 #	
 #	Dump ve Load fonksiyonlarına FILE-PATH düzenlemesi lazım
@@ -30,16 +28,16 @@ from dbex.lib.decoder import Decoder
 
 
 def dump(*a, **kw):
-    Decoder().dump(*a, **kw)
+    return Encoder().dump(*a, **kw)
 
 
 def dumps(*a, **kw):
-    Decoder().dumps(*a, **kw)
+    return Encoder().dumps(*a, **kw)
 
 
 def load(*a, **kw):
-    Encoder().load(*a, **kw)
+    return Decoder().load(*a, **kw)
 
 
 def loads(*a, **kw):
-    Encoder().loads(*a, **kw)
+    return Decoder().loads(*a, **kw)

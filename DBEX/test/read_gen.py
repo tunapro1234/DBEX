@@ -26,6 +26,7 @@ def write(filename):
 
 def test():
 	filename = "dbex/res/test.dbex"
+	# filename = "dbex/test/test.dbex"
 	# write(filename)
 
 	# gen = read_file_gen(filename)
