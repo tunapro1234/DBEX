@@ -51,7 +51,7 @@ dec = Decoder()
 
 
 class TestDecoder(unittest.TestCase):
-    test_file = "dbex/test/TestNewDecoder.dbex"
+    test_file = "dbex/test/TestDecoder.json"
 
     def setUp(self):
         with open(self.test_file, "w+") as file:

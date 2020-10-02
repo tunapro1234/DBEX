@@ -6,7 +6,7 @@ enc = Encoder()
 
 
 class TestEncoder(unittest.TestCase):
-    test_file = "dbex/test/TestNewEncoder.dbex"
+    test_file = "dbex/test/TestEncoder.json"
 
     def setUp(self):
         with open(self.test_file, "w+") as file:

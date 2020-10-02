@@ -6,7 +6,7 @@ sort = sorter.sorter
 
 
 class TestSortItems(unittest.TestCase):
-    test_file = "dbex/test/test_tests.dbex"
+    test_file = "dbex/test/testSortItems.dbex"
 
     def setUp(self):
         with open(self.test_file, "w+") as file:

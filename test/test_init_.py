@@ -53,7 +53,7 @@ enc = Encoder()
 
 
 class TestMainPackage(unittest.TestCase):
-    test_file = "dbex/test/test_init.json"
+    test_file = "dbex/test/TestMainPackage.json"
 
     def setUp(self):
         with open(self.test_file, "w+") as file:

@@ -376,6 +376,7 @@ class Encoder:
         encoding = self.file_encoding if encoding is None else encoding
         sort_keys = self.sort_keys if sort_keys is None else sort_keys
         max_depth = self.max_depth if max_depth is None else max_depth
+        file = self.path if file is None else file
 
         max_depth = self.max_depth if type(file) is not str else max_depth
 

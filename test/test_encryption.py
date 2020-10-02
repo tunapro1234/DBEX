@@ -9,7 +9,7 @@ enc, dec = Encoder(), Decoder()
 
 
 class TestEncryption(unittest.TestCase):
-    test_file = "dbex/test/TestEncryption.dbex"
+    test_file = "dbex/test/TestEncryption.json"
 
     def setUp(self):
         with open(self.test_file, "w+") as file:
