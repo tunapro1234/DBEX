@@ -4,17 +4,19 @@ from dbex.lib.encoder import Encoder
 from dbex.lib.decoder import Decoder
 """## TO DO ######################################################
 #	
-#	Dump ve Load fonksiyonlarına FILE-PATH düzenlemesi lazım
+#	HEADER
+#	Encoder için returnler kaldırılabilir
+#	Encoder dump fonksiyonlarına doc string ekle
+#	Biraz daha açıklama koymam çok hoş olabilirdi
 #	Decoder ve Encoder için backslash geliştirmesi
 #	
-#	Biraz daha açıklama koymam çok hoş olabilirdi
-#	Encoder dump fonksiyonlarına doc string ekle
-#	
-#	WRITE_GEN için file parametresi eklenebilir
+#	WRITE_GEN için file parametresi eklenebilir (gerek var mı?)
 #	HATA ISIMLENDIRMELERI
 #	
+#	
+#	## Boş
 #	Encoder kısmı Decoder koduna göre çok düzensiz kaçıyor
-#	    - yoo (gelecekteki tuna
+#	    - yoo (gelecekteki tuna)
 #	        - yoo öyle (daha da gelecekteki tuna)
 #	
 #	Decoder ve Encoderda sort_keys geliştirilebilir
