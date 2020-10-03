@@ -1,7 +1,7 @@
 def version():
     # with open("VERSION.txt") as file:
     # 	return file.read()
-    version = "0.0.10.6"
+    version = "0.1.10"
     return version
 
 

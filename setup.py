@@ -1,6 +1,6 @@
 from setuptools import setup
 
-__version__ = "0.0.10.6"
+__version__ = "0.1.10"
 
 readme = """
 Json like decoder

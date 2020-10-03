@@ -1,11 +1,10 @@
-from dbex.encryption import ExampleEncrypter1 as DefaultEncryptionClass
-from dbex.encryption import DebugEncrypter
+# from dbex.encryption import ExampleEncrypter1 as DefaultEncryptionClass
 from dbex.encoder import Encoder
 from dbex.decoder import Decoder
+import dbex.encryption
 """## TO DO ######################################################
 #	
 #	HEADER
-#	Encoder için returnler kaldırılabilir
 #	Encoder dump fonksiyonlarına doc string ekle
 #	Biraz daha açıklama koymam çok hoş olabilirdi
 #	Decoder ve Encoder için backslash geliştirmesi
