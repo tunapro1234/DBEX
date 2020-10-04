@@ -7,13 +7,6 @@ import dbex.globalv as gvars
 
 __version__ = gvars.version()
 """
-Evveettt dün 10 saat uğraşıp baştan yazdığım encoder classına yaptığım geliştirmeyi decoder classına da yapma zamanı geldi
-sonra köle gibi yorumlamam gerekiyor
-sonra encryptor 
-sonra header
-pff çok iş var
-
-
 planım neredeyse new_encoder ile aynı olacak 
 __convert ->    __router ->     __convert_list | -> __convert
 						|->     __convert_dict |
@@ -41,16 +34,27 @@ düznlenmiş hali:
 gen_normalizer(__convert(__tokenize_control(__tokenize(read_gen()))))
 tabii tokenize_control fonksiyonu kendi içinde __tokenize fonksiyonunu çağırıyorr o yüzden çağırmam gerek yoktu
 
-__convert_obj yaptım
-hadi başlayalım
+########################################################################################################################
+Şimdi optimizasyon zamanı
+Cython ile optimizasyonu nasıl yapabilirim
+
+hmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm
+
+generator kullanmak yerine __next__ ve __iter__ li class kullanmanın daha kısa sürede görevi tamamlayabileceğini biliyoruz
+önce generatorları çevirmeden yapayım da sonra generatorları classa çeviririm
+
+Array yapılarını biraz daha iyi araştırmalıyım
+
+Ayrıca temel yapıda bir iki değişikliğe gidebilirim 
+Kusursuz bir optimizasyon almam mümkün değil çünkü __convert_obj gibi fonksiyonlar var yine de bakacağız
+
 """
 
 
 class DBEXDecodeError(ValueError):
     # biraz çaldım gibi
-    def __init__(self, msg, code, pos="Unknown"):
-
-        code = (3 - len(str(code))) * '0' + str(code)
+    def __init__(self, msg, code, pos=-1):
+        self.code = (3 - len(str(code))) * '0' + str(code)
         errmsg = f"{msg} (Code: {code}): (char {pos})"
         ValueError.__init__(self, errmsg)
 
@@ -65,26 +69,42 @@ class DBEXDecodeError(ValueError):
 sort_keys_func = sorter_func
 
 
-class Decoder:
-    default_tokenizers = "[{(\\,:\"')}]"
-    header_shape = gvars.header_shape
+cdef class Decoder:
+    # cdef public header_shape = gvars.header_shape
+    
+    cdef str default_tokenizers
+    cdef dict decrypter_kwargs
+    cdef int changed_file_action
+    cdef bint json_compatibility
+    cdef list decrypter_args
+    cdef str file_encoding
+    cdef str header_path
+    cdef database_shape
+    cdef bint sort_keys
+    cdef encryption_obj
+    cdef int max_depth
+    cdef str path
+    
+    cpdef decrypter_gen
+    cpdef decrypter
 
     def __init__(self,
-                 path=None,
-                 sort_keys=0,
-                 header=False,
-                 max_depth="all",
-                 header_path=None,
-                 json_compability=1,
+                 str path="",
+                 int sort_keys=0,
+                 int max_depth=-1,
+                 str header_path="",
                  database_shape=None,
-                 decrypter_args=None,
                  encryption_obj=None,
-                 decrypter_kwargs=None,
-                 file_encoding="utf-8",
-                 changed_file_action=0):
+                 list decrypter_args=[],
+                 str file_encoding="utf-8",
+                 int changed_file_action=0,
+                 bint json_compatibility=True,
+                 dict decrypter_kwargs={}):
+
+        self.default_tokenizers = "[{(\\,:\"')}]"
 
         self.changed_file_action = changed_file_action
-        self.json_compability = json_compability
+        self.json_compatibility = json_compatibility
         self.decrypter_kwargs = decrypter_kwargs
         self.encryption_obj = encryption_obj
         self.decrypter_args = decrypter_args
@@ -93,7 +113,6 @@ class Decoder:
         self.header_path = header_path
         self.sort_keys = sort_keys
         self.max_depth = max_depth
-        self.header = header
         self.path = path
 
         self.decrypter = None
@@ -107,33 +126,25 @@ class Decoder:
                 raise TypeError(
                     "Must use DBEXMetaEncrypter on Encryption class objects")
 
-    def __tokenize(self, string, tokenizers=None):
-        """Verilen tokenizerları verilen string (ya da generator) 
-        içinden alıp ayıklıyor (string değer kontrolü yok)
-
-        Args:
-            string (str): [string ya da stringi döndüren bir generator]
-            tokenizers (str): tokenizerlar işte. Defaults to Decoder.default_tokenizers.
-
-        Yields:
-            str: her bir özel parça ve arasında kalanlar
-        """
-        tokenizers = self.default_tokenizers if tokenizers is None else tokenizers
+    def __tokenize(self, string):
         # Son token indexi
-        temp = ""
-        last_token_index = 0
-        ending_index = 0
+        cdef str temp = ""
+        cdef int last_token_index = 0
+        cdef int ending_index = 0
+        
+        cdef int index
+        cdef str char
         #   Ki bir daha token bulduğumzda eskisi
         # ile yeni bulunan arasını da yollayabilelim
 
         # gen_func verilirse uyum sağlamak için
         # while not isinstance(string, Iterable):
-        string = string() if callable(string) else string
+        # string = string() if callable(string) else string
 
         for index, char in enumerate(string):
             # 	eğer string yerine generator verilirse ve bu
             # generator ", " şeklinde döndürürse sıkıntı olmasın diye strip
-            if char.strip() != "" and char.strip() in tokenizers:
+            if char.strip() != "" and char.strip() in self.default_tokenizers:
                 # "" önlemek için
                 if index > (last_token_index + 1):
                     # son token ile şu anki token arasını yolla
@@ -150,32 +161,19 @@ class Decoder:
         if ending_index != last_token_index:
             yield temp
 
-    def __tokenize_control(self, reader_gen, tokenizers=None):
-        """Her ne kadar __tokenize fonksiyonunda tokenlara ayırmış olsak da 
-		tırnak işaretlerinin lanetine yakalanmaktan kurtulmak için bu fonksiyonu kullanıyoruz
-
-		Args:
-			reader_gen (Decoder.read_gen(dosya_yolu)): parça parça okunan değerleri yollayan herhangi bir generator olabilir
-			tokenizers (str): tokenizerlar işte. Defaults to Decoder.default_tokenizers.
-
-		Raises:
-			Exception: String dışında backslash kullanıldığında patlıyor
-
-		Yields:
-			str: her bir parça (ya token ya da element)
-		"""
-
-        errpos = 0
-        tokenizers = self.default_tokenizers if tokenizers is None else tokenizers
+    def __tokenize_control(self, reader_gen):
+        cpdef int errpos = 0
+        # tokenizers = self.default_tokenizers if tokenizers is None else tokenizers
         #   eğer tırnak işaret ile string değer
         # girilmeye başlanmışsa değerlerin kaydolacağı liste
-        active_str = None
+        cdef str active_str = ""
         # Hangi tırnak işaretiyle başladığımız
-        is_string = False
+        cdef str is_string = ""
         # Önceki elemanın \ olup olmadığı
-        is_prv_bs = False
-
-        for part in self.__tokenize(reader_gen, tokenizers):
+        cdef bint is_prv_bs = False
+        cdef str part
+        
+        for part in self.__tokenize(reader_gen):
             if part in ["'", '"', "\\"]:
                 # Parça tırnak işaretiyse
                 if part in ["'", '"']:
@@ -184,25 +182,25 @@ class Decoder:
                         #       Eğer stringi açmak için kullanılan tırnak
                         #   işaretiyle şu an gelen tırnak işareti
                         # aynıysa string kapatılıyor (is_string False oluyor)
-                        is_string = False if is_string == part else is_string
+                        is_string = "" if is_string == part else is_string
 
                         # Eğer string şimdi kapatıldıysa
                         if not is_string:
                             # Son parçayı aktif stringe ekle
-                            active_str.append(part)
+                            active_str += part
 
                             # Aktif stringi birleştirip yolla
-                            yield "".join(active_str)
+                            yield active_str
                             # Bu noktada neden aktif stringi listede topladığımı sorgulamaya başlıyorum
 
                             # Sıfırla
-                            active_str = None
+                            active_str = ""
                             is_string = False
 
                         # Hala stringin içindeysek
                         else:
                             # Parçayı ekle
-                            active_str.append(part)
+                            active_str += part
                             # Diğer tırnak işareti olması ve \ için
 
                     # String içine daha yeni giriyorsak
@@ -210,7 +208,7 @@ class Decoder:
                         # Hangi tırnakla girdiğimizi belirt
                         is_string = part
                         # Tırnağı aktif stringe ekle
-                        active_str = [part]
+                        active_str = part
 
                         #   aktif stringe tırnak ekleme sebebim ileride
                         # string ve int değerlerin ayrımını kolaylaştırmak
@@ -224,11 +222,10 @@ class Decoder:
                 elif part == "\\":
                     # Lanet olası şey
                     if is_string:
-
                         # Önceki bu değilse anlam kazansın
                         # Buysa anlamını yitirisin (\\ girip \ yazması için filan)
                         if not is_prv_bs:
-                            active_str.append("\\")
+                            active_str += "\\"
 
                         # Tersine çevir
                         is_prv_bs = bool(1 - is_prv_bs)
@@ -246,7 +243,7 @@ class Decoder:
             else:
                 # Stringse ekle değilse yolla
                 if is_string:
-                    active_str.append(part)
+                    active_str += part
 
                 # boşluklar eleniyor
                 elif part.strip() != "":
@@ -256,9 +253,9 @@ class Decoder:
 
     def __convert(self,
                   generator_func,
-                  index=0,
-                  max_depth=None,
-                  gen_lvl=0,
+                  int index=0,
+                  int max_depth=-2,
+                  int gen_lvl=0,
                   **kwargs):
         """Verilen objenin nereye gideceğini yönlendiriyor ve generator DEĞİL
 
@@ -273,14 +270,19 @@ class Decoder:
 		"""
 
         # yapf: disable
-        kwargs["max_depth"] = max_depth = self.max_depth if max_depth is None else max_depth
+        kwargs["max_depth"] = max_depth = self.max_depth if max_depth == -2 else max_depth
         # max_depth default ayarlaması
         kwargs["gen_lvl"] = gen_lvl + 1
         # gen_lvl sadece burada arttırılıyor
 
-        if (gen := generator_func()) is None:  # fonksiyondan bir tane generaotr koparıyoruz
+        gen = generator_func()
+        if gen is None:  # fonksiyondan bir tane generaotr koparıyoruz
             raise DBEXDecodeError("Okuma hatasi", code=0)
 
+
+        cpdef str element
+        cpdef int i
+        
         # 	Şimdi bize bir index veriliyor ve bu index, dönüştürülmesi istenen objenin
         # generator_functionın döndürdüğü generatorın kaçıncı elemanı olduğunun sayacı
         # Biz de bu objeye gidebilmek için aşağıdaki while döngüsünü kullanıyoruz
@@ -308,13 +310,13 @@ class Decoder:
         # 	raise DBEXDecodeError("Can convert up to 1 object only", 0)
 
     def __router(self,
-     element,
-     gen,
-     generator_func,
-     index=0,
-     max_depth=None,
-     gen_lvl=1,
-     **kwargs):
+                 str element,
+                 gen,
+                 generator_func,
+                 int index=0,
+                 int max_depth=-2,
+                 int gen_lvl=1,
+                 **kwargs):
         """__convert için yardımcı fonksiyon, __convert_list ya da __convert_gen'e gideceğini belirliyor
 
 		Args:
@@ -330,9 +332,9 @@ class Decoder:
 		"""
 
         # yapf: disable
-        kwargs["max_depth"] = max_depth = self.max_depth if max_depth is None else max_depth
+        max_depth = self.max_depth if max_depth == -2 else max_depth
         # default ayarlama şeyleri
-        kwargs["gen_lvl"] = gen_lvl
+        # kwargs["gen_lvl"] = gen_lvl
         return_func = None
 
         # 							Şimdi hızlıca özet geçeceğim. biz ilgili __convert_.. fonksiyonuna generator_function'ı
@@ -346,13 +348,16 @@ class Decoder:
 
         # Ayrıca gen_lvl ve max_depth kontrolü de burada yapılıyor, aşılmışsa gen_normalizer'a yollanıyor
 
+        cpdef int next_closing
+        
         if element == "[":
             next_closing = self.__find_next_closing(gen, index=index, b_type="[]")
             new_gen_func = lambda: (j for i, j in enumerate(generator_func()) if index < i <= next_closing)
 
             def list_gen():
                 # convert_liste yeni generator_func verdiğimiz için index vermemiz gerekmiyor
-                return (i for i in self.__convert_list(new_gen_func, **kwargs))
+                return (i for i in self.__convert_list(new_gen_func, max_depth=max_depth, 
+                                                       gen_lvl=gen_lvl, **kwargs))
 
             return_func = list_gen
 
@@ -362,8 +367,8 @@ class Decoder:
                if index < i <= next_closing)
 
             def dict_gen():
-                # yapf: disable
-                return (i for i in self.__convert_dict(new_gen_func, **kwargs))
+                return (i for i in self.__convert_dict(new_gen_func, max_depth=max_depth, 
+                                                       gen_lvl=gen_lvl, **kwargs))
 
             return_func = dict_gen
 
@@ -373,28 +378,28 @@ class Decoder:
                if index < i <= next_closing)
 
             def tuple_gen():
-                # yapf: disable
-                return (i for i in self.__convert_list(new_gen_func, tuple_mode=True, **kwargs))
+                return (i for i in self.__convert_list(new_gen_func, tuple_mode=True, 
+                                            max_depth=max_depth, gen_lvl=gen_lvl, **kwargs))
 
             return self.gen_normalizer(tuple_gen)
             # return_func = tuple_gen
 
 
-        if type(max_depth) == int and gen_lvl <= max_depth:
+        if max_depth != -1 and gen_lvl <= max_depth:
             return self.gen_normalizer(return_func, recursion=False)
 
-        elif type(max_depth) == str and max_depth == "all":
+        elif max_depth < 0:
             return self.gen_normalizer(return_func)
 
         else:
             return return_func
 
-    def __convert_obj(self, element, json_compability=True):
+    def __convert_obj(self, str element, bint json_compatibility=True):
         """Verilen str objeyi anlamlandırıyor
 
 		Args:
 			element (str): obje
-			json_compability (bool, optional): json uyumluluğu. Defaults to True.
+			json_compatibility (bool, optional): json uyumluluğu. Defaults to True.
 
 		Raises:
 			DBEXDecodeError: Tanımlanmamış obje
@@ -402,9 +407,10 @@ class Decoder:
 		Returns:
 			Objenin gerçek formu
 		"""
+        
         element = element.strip()
 
-        if json_compability:
+        if json_compatibility:
             if element == "null":
                 return None
             elif element in ["true", "false"]:
@@ -430,22 +436,35 @@ class Decoder:
             raise DBEXDecodeError(
              f"Undefined keyword : [{element}]", 0)
 
-    def __convert_list(self, generator_func, tuple_mode=False, **kwargs):
+    def __convert_list(self, generator_func, bint tuple_mode=False, **kwargs):
         gen = generator_func()
 
         # last used index
-        lui = -1
+        cdef int lui = -1
         # current index
-        ci = 0
+        cdef int ci = 0
 
         # Parantez kapatma değişkeni
-        closing = ")" if tuple_mode else "]"
+        # cdef str closing = ")" if tuple_mode else "]"
+        
+        
         # İstemediğimiz parantez kapatma şekilleri
-        err_closing = "".join([i for i in "]})" if i != closing])
+        # cdef str err_closing = "".join([i for i in "]})" if i != closing])
         # virgül kontroolü için
+        cdef str err_closing, closing
+        cdef str b_type
+        
+        if tuple_mode:
+            err_closing = "]}"
+            closing = ")"
 
-
-        index = 0
+        else:
+            err_closing = ")}"
+            closing = "]"
+            
+        cdef int index = 0
+        cdef str element
+        
         for element in gen:
             if element.strip() == ",":
                 # kullanılabilecek index arttırıldı
@@ -467,7 +486,6 @@ class Decoder:
 
                 # index arttırma
                 if element in "[{(":
-                    b_type=None
                     # 	bu tarz şeylerde
                     # kısaltma olmamsı beni üzüyor
                     if element == "(":
@@ -492,13 +510,14 @@ class Decoder:
 
     def __convert_dict(self, generator_func, **kwargs):
         gen = generator_func()
-        index = 0
+        cdef int index = 0
 
         # aktif olarak döndürülecek hangi değere yazığımız, key ya da valueya yazdığımızı gösteriyor
         # eğer keye yazmaya çalışıyorsak 0, valueya yazmaya çalışıyorsak 1
-        cursor = 0
-        cur_value = []
-        err_closing = ")]"
+        cdef str err_closing = ")]", element
+        cpdef list cur_value = []
+        cdef int cursor = 0
+        
         for element in gen:
             if element.strip() == "}":
                 if len(cur_value) == 2:
@@ -551,7 +570,7 @@ class Decoder:
 
             index = index + 1
 
-    def __find_next_closing(self, gen, index=0, b_type="[]"):
+    cdef int __find_next_closing(self, gen, int index=0, str b_type="[]"):
         """sonraki parantez kapatma şeyini buluyor
 
 		Args:
@@ -562,9 +581,12 @@ class Decoder:
 		Returns:
 			[b_type]: [description]
 		"""
-        cot = 1
-        if len(b_type) != 2:
-            raise Exception("Benim hatam...")
+
+        cdef str element
+        cdef int cot = 1
+        
+        # if len(b_type) != 2:
+        #     raise Exception("Benim hatam...")
 
         for element in gen:
             # j, index = next(gen), index + 1
@@ -577,21 +599,23 @@ class Decoder:
             if cot == 0:
                 return index
 
-        raise DBEXDecodeError("parantezin kapanisi bulanamadi", 0)
+        return -1
 
-    def loads(self, inputObj, max_depth=None, sort_keys=None, **kwargs):
-        sort_keys = self.sort_keys if sort_keys is None else sort_keys
-        max_depth = self.max_depth if max_depth is None else max_depth
-        kwargs["max_depth"] = "all" if sort_keys else max_depth
+    def loads(self, inputObj, int max_depth=-2, int sort_keys=-1, **kwargs):
+        sort_keys = self.sort_keys if sort_keys == -1 else int(bool(sort_keys))
+        max_depth = self.max_depth if max_depth == -2 else max_depth
+        max_depth = -1 if sort_keys else max_depth
 
-        final = self.__convert(lambda: self.__tokenize_control(inputObj), **kwargs)
-        return sort_keys_func(final) if sort_keys else final
-
+        if sort_keys:
+            return sort_keys_func(self.__convert(lambda: self.__tokenize_control(inputObj), max_depth=max_depth, **kwargs))
+        else:
+            return self.__convert(lambda: self.__tokenize_control(inputObj), max_depth=max_depth, **kwargs)
+        
     def load(self,
              file=None,
-             encoding=None,
-             max_depth=None,
-             sort_keys=None,
+             str encoding=None,
+             int max_depth=-2,
+             int sort_keys=-2,
              encryption_obj=None,
              decrypter_args=None,
              decrypter_kwargs=None,
@@ -655,7 +679,7 @@ class Decoder:
         final = None
         gen = gen_func()
         if gen_func.__name__ in ["list_gen", "tuple_gen"]:
-            final = []
+            # cpdef list final = []
             for value in gen:
                 if callable(value) and recursion:
                     final.append(self.gen_normalizer(value))
@@ -663,7 +687,7 @@ class Decoder:
                     final.append(value)
 
         elif gen_func.__name__ == "dict_gen":
-            final = {}
+            # cpdef dict final = {}
             for key, value in gen:
                 if callable(value) and recursion:
                     final[key] = self.gen_normalizer(value)
@@ -672,16 +696,17 @@ class Decoder:
 
         return tuple(final) if gen_func.__name__ == "tuple_gen" else final
 
-    def read(self, file=None, encoding=None):
+    cdef str read(self, file=None, str encoding=""):
         # sort keys olayına göz at
         # decrypter = self.default_decrypter if decrypter is None else decrypter
-        encoding = self.file_encoding if encoding is None else encoding
+        encoding = self.file_encoding if encoding == "" else encoding
         file = self.path if file is None else file
 
         # file = open(file) if type(file) is str else file
         # read = file.read()
         # file = file.close() if type(file) is str else file
-
+        # return read
+        
         if type(file) is str:
             with open(file, encoding=encoding) as file:
                 return file.read()
@@ -695,17 +720,20 @@ class Decoder:
         # char = True
         # file = open(file) if type(file) is str else file
         # while char:
-        #     yield (char := file.read(1))
+        #     char = file.read(1)
+        #     yield char
         # file = file.close() if type(file) is str else file
 
         char = True
         if type(file) is str:
             with open(file, encoding=encoding) as file:
                 while char:
-                    yield (char := file.read(1))
+                    char = file.read(1)
+                    yield char
         else:
             while char:
-                yield (char := file.read(1))
+                char = file.read(1)
+                yield char
 
 
     def read_gen_safe(self, path=None, encoding=None):
@@ -716,8 +744,7 @@ class Decoder:
         index = -1
         while char:
             with open(path) as file:
-                file.seek((index := index+1), 0)
-                yield (char := file.read(1))
-
-    def sort_keys(self, rv, *args, **kwargs):
-        return rv
+                index += 1
+                file.seek(index, 0)
+                char = file.read(1)
+                yield char
