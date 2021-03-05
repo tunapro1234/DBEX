@@ -1,5 +1,5 @@
 from dbex.encryption import DBEXMetaEncrypter
-from dbex.__init__ import DebugEncrypter
+from dbex.encryption import DebugEncrypter
 from dbex.__init__ import Decoder  # sonunda
 from dbex.__init__ import Encoder
 import unittest

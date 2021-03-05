@@ -1,4 +1,4 @@
-from dbex.__init__ import DebugEncrypter
+# from dbex.__init__ import DebugEncrypter
 from dbex.__init__ import Decoder  # sonunda
 from dbex.__init__ import Encoder
 import unittest
